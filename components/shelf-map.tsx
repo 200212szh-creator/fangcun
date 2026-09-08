@@ -1,0 +1,11 @@
+"use client";
+import Link from "next/link";
+import { MapPin } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { OwnedCopy, ShelfLocation } from "@/lib/types";
+
+export function ShelfMap({ shelves, books }: { shelves: ShelfLocation[]; books: OwnedCopy[] }) {
+  const active = shelves.filter((shelf) => shelf.active);
+  return <Card><CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-brass" />真实位置视图</CardTitle><CardDescription>只显示数据库中已保存的书架与副本坐标；没有坐标的副本不会被虚构放置。</CardDescription></CardHeader><CardContent>{active.length ? <div className="grid gap-4 sm:grid-cols-2">{active.map((shelf) => { const copies = books.filter((book) => book.shelfLocationId === shelf.id); return <div key={shelf.id} className="rounded-xl border border-border bg-paper-muted/45 p-4"><div className="flex items-center justify-between gap-3"><p className="font-semibold">{shelf.name}</p><span className="text-xs text-ink/55">{copies.length} 本</span></div><div className="mt-4 grid grid-cols-4 gap-2">{Array.from({ length: 12 }, (_, index) => { const slot = String(index + 1); const copy = copies.find((book) => book.shelfSlot === slot || book.shelfCoordinate === slot); return copy ? <Link href={`/books/${copy.id}`} key={slot} title={copy.edition.title} aria-label={`${copy.edition.title}，位置 ${slot}`} className="motion-book flex min-h-24 items-center justify-center rounded-md bg-navy px-2 py-2 text-center text-[11px] font-semibold leading-4 text-white ring-2 ring-brass/60 hover:bg-ink"><span className="break-words">{copy.edition.title}</span></Link> : <span key={slot} className="flex aspect-square min-h-11 items-center justify-center rounded-md border border-dashed border-border text-[10px] text-ink/30">{slot}</span>; })}</div>{copies.filter((copy) => !copy.shelfSlot && !copy.shelfCoordinate).length ? <p className="mt-3 text-xs text-ink/50">另有 {copies.filter((copy) => !copy.shelfSlot && !copy.shelfCoordinate).length} 本仅指定书架、尚未填写格位。</p> : null}</div>; })}</div> : <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-ink/50">创建书架并为副本指定位置后，这里会显示真实布局。</p>}</CardContent></Card>;
+}
+

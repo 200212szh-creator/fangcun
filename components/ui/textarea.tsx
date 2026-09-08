@@ -1,0 +1,2 @@
+import { cn } from "@/lib/utils";
+export function Textarea({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) { return <textarea className={cn("min-h-24 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink shadow-sm motion-control placeholder:text-ink/45 focus:border-navy focus:outline-none focus:ring-2 focus:ring-brass/30", className)} {...props} />; }

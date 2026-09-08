@@ -1,0 +1,4 @@
+import { NextResponse } from "next/server";
+import { normalizeISBN } from "@/lib/isbn";
+export const dynamic = "force-dynamic";
+export async function POST(request: Request) { const body = await request.json() as { csv?: string }; const lines = (body.csv ?? "").trim().split(/\r?\n/).filter(Boolean); if (!lines.length) return NextResponse.json({ headers: [], rows: [], errors: [] }); const headers = lines[0].split(",").map((item) => item.trim()); const rows = lines.slice(1).map((line, index) => { const values = line.split(",").map((item) => item.trim()); const item = Object.fromEntries(headers.map((header, column) => [header, values[column] ?? ""])); const errors = item.isbn13 && !normalizeISBN(item.isbn13) ? ["ISBN-13 无效"] : []; return { row: index + 2, item, errors }; }); return NextResponse.json({ headers, rows, errors: rows.flatMap((row) => row.errors.map((error) => ({ row: row.row, error }))) }); }

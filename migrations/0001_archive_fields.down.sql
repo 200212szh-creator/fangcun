@@ -1,0 +1,25 @@
+-- Rollback for a pre-production rehearsal. Run only after a backup.
+DROP INDEX IF EXISTS idx_owned_copies_shelf_location;
+DROP INDEX IF EXISTS idx_shelf_locations_user_order;
+ALTER TABLE book_editions DROP COLUMN original_title;
+ALTER TABLE book_editions DROP COLUMN series_name;
+ALTER TABLE book_editions DROP COLUMN edition_statement;
+ALTER TABLE book_editions DROP COLUMN edition_number;
+ALTER TABLE book_editions DROP COLUMN print_run;
+ALTER TABLE book_editions DROP COLUMN publication_date;
+ALTER TABLE book_editions DROP COLUMN edition_notes;
+ALTER TABLE book_editions DROP COLUMN original_publisher;
+ALTER TABLE owned_copies DROP COLUMN acquisition_method;
+ALTER TABLE owned_copies DROP COLUMN acquisition_source;
+ALTER TABLE owned_copies DROP COLUMN acquisition_place;
+ALTER TABLE owned_copies DROP COLUMN price_cents;
+ALTER TABLE owned_copies DROP COLUMN currency;
+ALTER TABLE owned_copies DROP COLUMN condition;
+ALTER TABLE owned_copies DROP COLUMN inscription;
+ALTER TABLE owned_copies DROP COLUMN receipt_note;
+ALTER TABLE owned_copies DROP COLUMN shelf_location_id;
+ALTER TABLE owned_copies DROP COLUMN shelf_slot;
+ALTER TABLE owned_copies DROP COLUMN shelf_coordinate;
+ALTER TABLE owned_copies DROP COLUMN location_sort_order;
+ALTER TABLE shelf_locations DROP COLUMN sort_order;
+ALTER TABLE shelf_locations DROP COLUMN active;

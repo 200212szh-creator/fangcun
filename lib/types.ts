@@ -1,0 +1,16 @@
+export type Locale = "zh" | "en";
+export type ReadingStatus = "unread" | "reading" | "read" | "paused" | "dropped";
+export type BookEdition = { id: string; title: string; authors: string[]; translators?: string[]; publisher?: string; publicationYear?: number; edition?: string; originalTitle?: string; seriesName?: string; editionStatement?: string; editionNumber?: number; printRun?: number; publicationDate?: string; editionNotes?: string; originalPublisher?: string; format?: string; language?: string; isbn10?: string; isbn13?: string; pages?: number; description?: string; coverUrl?: string; subjects?: string[]; source: string; externalId?: string };
+export type BookCandidate = { id: string; title: string; authors: string[]; description?: string; coverUrl?: string; publisher?: string; publicationYear?: number; format?: string; language?: string; isbn13?: string; score: number; editionCount: number; source: string };
+export type Category = { id: string; name: string; description?: string; color?: string };
+export type Tag = { id: string; name: string; color?: string };
+export type ShelfLocation = { id: string; name: string; parentId?: string | null; room?: string; sortOrder: number; active: boolean };
+export type AcquisitionMethod = "purchase" | "gift" | "inherited" | "other";
+export type OwnedCopy = { id: string; userId: string; editionId: string; edition: BookEdition; location?: string; shelfLocationId?: string; shelfSlot?: string; shelfCoordinate?: string; locationSortOrder?: number; category?: Category; tags: Tag[]; readingStatus: ReadingStatus; rating?: number; notes?: string; acquiredAt?: string; acquisitionMethod?: AcquisitionMethod; acquisitionSource?: string; acquisitionPlace?: string; priceCents?: number; currency?: string; condition?: string; inscription?: string; receiptNote?: string; createdAt: string; updatedAt: string; deletedAt?: string | null };
+export type Loan = { id: string; copyId: string; borrowerName: string; borrowerContact?: string; lentAt: string; dueAt?: string; returnedAt?: string; status: "active" | "returned"; overdue?: boolean; note?: string };
+export type Concept = { id: string; name: string; description?: string };
+export type Annotation = { id: string; copyId: string; pageLabel?: string; body: string; createdAt: string; updatedAt: string; concepts: Concept[] };
+export type WishlistItem = { id: string; edition: BookEdition; note?: string; createdAt: string };
+export type ResearchWork = { id: string; title: string; authors: string[]; abstract?: string; doi?: string; journal?: string; year?: number; tags: string[]; notes?: string; openAccessUrl?: string; source?: string; folderIds?: string[] };
+export type ResearchFolder = { id: string; name: string; description?: string; workCount: number };
+export type SearchResult = | { kind: "book"; id: string; title: string; authors: string[]; publisher?: string; year?: number; coverUrl?: string; source: string; edition?: BookEdition } | { kind: "paper"; id: string; title: string; authors: string[]; abstract?: string; journal?: string; year?: number; doi?: string; openAccessUrl?: string; source: string };

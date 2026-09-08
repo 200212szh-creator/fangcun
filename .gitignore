@@ -1,0 +1,14 @@
+﻿node_modules/
+.next/
+data/*.db
+data/*.db-shm
+data/*.db-wal
+.env
+.env.local
+playwright-report/
+test-results/
+*.log
+runtime/
+artifacts/
+tsconfig.tsbuildinfo
+*.bak
