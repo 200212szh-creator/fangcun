@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -142,11 +142,11 @@ function AddBookContent() {
   const fillManual = (edition: BookEdition) => { form.reset({ title: edition.title, authors: edition.authors.join(", "), publisher: edition.publisher ?? "", publicationYear: edition.publicationYear ?? "", publicationDate: edition.publicationDate ?? "", isbn13: edition.isbn13 ?? "", language: edition.language ?? "", format: edition.format ?? "", pages: edition.pages ?? "", originalTitle: edition.originalTitle ?? "", seriesName: edition.seriesName ?? "", editionStatement: edition.editionStatement ?? "", editionNumber: edition.editionNumber ?? "", printRun: edition.printRun ?? "", editionNotes: edition.editionNotes ?? "", originalPublisher: edition.originalPublisher ?? "", description: edition.description ?? "", shelfCoordinate: "", readingStatus: "unread" }); changeTab("manual"); };
 
   const activeShelf = (categoriesQuery.data?.shelves ?? []).find((shelf) => shelf.id === shelfLocationId);
-  return <div>
-    <div className="mb-7"><p className="mb-2 text-xs font-bold uppercase tracking-[.18em] text-brass">CATALOG</p><h1 className="serif text-4xl font-semibold tracking-tight text-ink sm:text-5xl">{t("add.title")}</h1><p className="mt-3 max-w-2xl text-base leading-7 text-ink/65">{t("add.subtitle")}</p></div>
-    {notice ? <div className="mb-5"><Notice>{notice}</Notice></div> : null}
+  return <div className="atelier-page atelier-add-page">
+    <div className="atelier-page-header"><div><p className="atelier-kicker">CATALOG</p><h1 className="atelier-display atelier-page-title">{t("add.title")}</h1><p className="mt-3 max-w-2xl text-base leading-7 text-ink/65">{t("add.subtitle")}</p></div>
+    </div>{notice ? <div className="mb-5"><Notice>{notice}</Notice></div> : null}
     {error ? <div className="mb-5"><Notice tone="danger">{error}</Notice></div> : null}
-    <Card><CardContent className="p-4 sm:p-6"><Tabs value={tab}>
+    <Card className="atelier-add-shell"><CardContent className="p-4 sm:p-6"><Tabs value={tab}>
       <TabsList className="w-full justify-start overflow-x-auto"><TabsTrigger value="title" activeValue={tab} onValueChange={changeTab}>{t("add.byTitle")}</TabsTrigger><TabsTrigger value="isbn" activeValue={tab} onValueChange={changeTab}>{t("add.byIsbn")}</TabsTrigger><TabsTrigger value="manual" activeValue={tab} onValueChange={changeTab}>{t("add.manual")}</TabsTrigger></TabsList>
       <TabsContent value="title" activeValue={tab}>
         <div className="max-w-2xl"><form onSubmit={(event) => { event.preventDefault(); runTitleLookup(); }} className="flex flex-col gap-3 sm:flex-row sm:items-end"><div className="relative flex-1"><label htmlFor="book-title" className="mb-2 block text-sm font-semibold">{t("add.titlePlaceholder")}</label><div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-ink/45" aria-hidden="true" /><Input id="book-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t("add.titlePlaceholder")} className="pl-9 pr-28" autoComplete="off" />{queryStatus === "loading" ? <span className="absolute right-3 top-3 text-xs text-ink/55">{t("add.searching")}</span> : null}</div></div><Button type="submit" variant="brass" disabled={title.trim().length < 2 || queryStatus === "loading"}><Search className="h-4 w-4" aria-hidden="true" />{t("add.find")}</Button></form><p className="mt-3 text-sm leading-6 text-ink/55">{t("add.titleHint")}</p></div>

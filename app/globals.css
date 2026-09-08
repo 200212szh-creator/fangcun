@@ -1,16 +1,16 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --parchment: 42 30% 96%;
+  --parchment: 40 36% 96%;
   --ink: 220 34% 14%;
   --navy: 210 51% 25%;
   --brass: 39 100% 30%;
   --paper-muted: 215 25% 91%;
-  --surface: 0 0% 100%;
+  --surface: 40 40% 99%;
   --surface-strong: 42 24% 91%;
-  --border: 214 32% 83%;
+  --border: 214 26% 80%;
   --success: 152 46% 31%;
   --warning: 37 86% 32%;
   --danger: 0 63% 42%;
@@ -25,7 +25,14 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; background: hsl(var(--parchment)); color: hsl(var(--ink)); font-family: var(--font-plus-jakarta), "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif; }
+body {
+  margin: 0;
+  background-color: hsl(var(--parchment));
+  background-image: linear-gradient(hsl(var(--parchment) / .78), hsl(var(--parchment) / .78)), url("/editorial-atelier/paper-texture.jpg");
+  background-size: auto, 900px auto;
+  color: hsl(var(--ink));
+  font-family: var(--font-plus-jakarta), "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
+}
 button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
@@ -75,10 +82,16 @@ details[open] > summary .motion-disclosure-icon { transform: rotate(180deg); }
 .motion-book { transition-property: border-color, box-shadow, transform; transition-duration: var(--motion-base); transition-timing-function: var(--ease-standard); }
 .motion-book:hover, .motion-book:focus-visible { transform: translateY(-1px); }
 
-.app-grid { background-image: linear-gradient(hsl(var(--border) / .22) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border) / .22) 1px, transparent 1px); background-size: 32px 32px; }
-.serif { font-family: var(--font-instrument-serif), "Songti SC", "STSong", SimSun, Georgia, serif; }
+.app-grid { background-image: linear-gradient(hsl(var(--border) / .20) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border) / .20) 1px, transparent 1px); background-size: 32px 32px; }
+.serif, .atelier-display { font-family: var(--font-instrument-serif), "Songti SC", "STSong", SimSun, Georgia, serif; }
 .brand-wordmark { font-family: var(--font-plus-jakarta), "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; letter-spacing: .04em; }
-.book-cover { background: linear-gradient(145deg, hsl(var(--navy)), hsl(var(--ink))); box-shadow: inset -8px 0 0 hsl(var(--brass) / .3), 0 8px 18px hsl(var(--ink) / .16); }
+
+.book-cover {
+  position: relative;
+  background: linear-gradient(145deg, hsl(var(--navy)), hsl(var(--ink)));
+  box-shadow: inset -8px 0 0 hsl(var(--brass) / .3), 0 8px 18px hsl(var(--ink) / .16);
+}
+.book-cover::before { position: absolute; inset: 0; background: linear-gradient(110deg, hsl(0 0% 100% / .10), transparent 28%, hsl(0 0% 0% / .15)); content: ""; pointer-events: none; }
 .book-cover.design { background: linear-gradient(145deg, #244c66, #10283b); }
 .book-cover.solitude { background: linear-gradient(145deg, #7a3f30, #291d2b); }
 .book-cover.everyday { background: linear-gradient(145deg, #9a6700, #49371d); }
@@ -86,7 +99,139 @@ details[open] > summary .motion-disclosure-icon { transform: rotate(180deg); }
 .book-cover.design-en { background: linear-gradient(145deg, #744c7b, #261f3a); }
 .book-cover.solitude-en { background: linear-gradient(145deg, #425d37, #1d3029); }
 
-.entry-glow { background: radial-gradient(circle at 50% 46%, hsl(var(--brass) / .1), transparent 25%), linear-gradient(135deg, hsl(var(--surface) / .2), hsl(var(--surface-strong) / .24)); }
+.atelier-topbar {
+  border-bottom: 1px solid hsl(var(--border) / .82);
+  background: hsl(var(--parchment) / .91);
+  backdrop-filter: blur(16px);
+}
+.atelier-topbar-inner {
+  display: flex;
+  min-height: 68px;
+  width: 100%;
+  align-items: center;
+  gap: 20px;
+  padding: 0 clamp(16px, 3.5vw, 52px);
+}
+.atelier-brand { display: inline-flex; min-width: 160px; align-items: center; gap: 10px; }
+.atelier-brand-mark { display: inline-flex; height: 36px; width: 36px; align-items: center; justify-content: center; border-radius: 50%; background: hsl(var(--navy)); }
+.atelier-desktop-nav { display: none; min-width: 0; flex: 1; align-items: center; justify-content: center; gap: clamp(2px, 1.1vw, 16px); }
+.atelier-nav-link {
+  position: relative;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  padding: 0 3px;
+  color: hsl(var(--ink) / .62);
+  font-size: 12px;
+  font-weight: 650;
+}
+.atelier-nav-link:hover { color: hsl(var(--ink)); }
+.atelier-nav-link.is-active { border-bottom-color: hsl(var(--brass)); color: hsl(var(--navy)); }
+.atelier-shell-search { position: relative; width: min(260px, 22vw); flex: 0 1 260px; }
+.atelier-shell-search input { border-radius: 999px; }
+.atelier-main { min-height: calc(100vh - 68px); }
+.atelier-main > div { min-width: 0; }
+
+.atelier-home { padding-bottom: 26px; }
+.atelier-home-masthead {
+  display: grid;
+  grid-template-columns: minmax(240px, .82fr) minmax(360px, 1.3fr) minmax(220px, .72fr);
+  gap: clamp(24px, 4vw, 64px);
+  align-items: stretch;
+  border-bottom: 1px solid hsl(var(--border) / .8);
+  padding: 14px 0 34px;
+}
+.atelier-home-intro { display: flex; min-width: 0; flex-direction: column; justify-content: center; padding: 18px 0; }
+.atelier-kicker {
+  margin: 0;
+  color: hsl(var(--brass));
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .22em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.atelier-home-title {
+  margin: 17px 0 0;
+  color: hsl(var(--ink));
+  font-size: clamp(54px, 5.2vw, 86px);
+  font-weight: 400;
+  letter-spacing: -.055em;
+  line-height: .92;
+}
+.atelier-home-subtitle { max-width: 300px; margin: 22px 0 0; color: hsl(var(--ink) / .68); font-size: 15px; line-height: 1.8; }
+.atelier-home-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.atelier-home-actions button { min-height: 44px; padding-inline: 16px; }
+.atelier-rule { height: 1px; background: hsl(var(--border) / .85); }
+.atelier-note { color: hsl(var(--ink) / .48); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.atelier-home-image {
+  position: relative;
+  min-width: 0;
+  min-height: 390px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / .82);
+  background: hsl(var(--surface-strong) / .6);
+}
+.atelier-home-image img { object-fit: cover; }
+.atelier-home-image::after { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 65%, hsl(var(--ink) / .34)); content: ""; pointer-events: none; }
+.atelier-home-image figcaption { position: absolute; z-index: 1; bottom: 14px; left: 16px; color: white; font-size: 11px; letter-spacing: .06em; }
+.atelier-record-panel { min-width: 0; border-left: 1px solid hsl(var(--border) / .82); padding: 18px 0 18px 26px; }
+.atelier-record-link { display: block; min-height: 100%; }
+.atelier-record-index { margin: 22px 0 0; color: hsl(var(--ink) / .50); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.atelier-record-title { margin: 26px 0 0; font-family: var(--font-instrument-serif), "Songti SC", SimSun, Georgia, serif; font-size: clamp(25px, 2.2vw, 38px); font-weight: 400; line-height: 1.04; overflow-wrap: anywhere; }
+.atelier-record-author { margin: 13px 0 0; color: hsl(var(--ink) / .60); font-size: 13px; line-height: 1.6; }
+.atelier-record-lines { display: grid; gap: 9px; margin-top: 30px; border-top: 1px solid hsl(var(--border) / .85); color: hsl(var(--ink) / .58); font-size: 11px; }
+.atelier-record-lines span { min-height: 31px; border-bottom: 1px solid hsl(var(--border) / .72); padding-top: 9px; }
+.atelier-record-cta { display: inline-flex; align-items: center; gap: 6px; margin-top: 22px; color: hsl(var(--navy)); font-size: 12px; font-weight: 700; }
+.atelier-record-empty { display: flex; min-height: 290px; flex-direction: column; justify-content: center; gap: 10px; color: hsl(var(--ink) / .58); }
+.atelier-record-empty p { margin: 12px 0 0; color: hsl(var(--ink)); font-family: var(--font-instrument-serif), serif; font-size: 25px; }
+.atelier-record-empty span { max-width: 190px; font-size: 13px; line-height: 1.6; }
+
+.atelier-stats { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid hsl(var(--border) / .8); }
+.atelier-stat-line { display: grid; grid-template-columns: auto auto 1fr; grid-template-rows: auto auto; gap: 0 9px; align-items: center; min-height: 86px; border-right: 1px solid hsl(var(--border) / .72); padding: 16px 18px; }
+.atelier-stat-line:last-child { border-right: 0; }
+.atelier-stat-line svg { grid-row: span 2; }
+.atelier-stat-value { font-family: var(--font-instrument-serif), serif; font-size: 33px; line-height: 1; }
+.atelier-stat-label { align-self: end; color: hsl(var(--ink) / .58); font-size: 11px; font-weight: 700; }
+.atelier-stat-detail { color: hsl(var(--ink) / .42); font-size: 10px; }
+.atelier-home-lower { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, .75fr); gap: clamp(30px, 5vw, 78px); padding-top: 36px; }
+.atelier-section-block { min-width: 0; }
+.atelier-section-heading { display: flex; min-height: 55px; align-items: flex-end; justify-content: space-between; gap: 14px; border-bottom: 1px solid hsl(var(--border) / .82); padding-bottom: 12px; }
+.atelier-section-title { margin: 4px 0 0; font-family: var(--font-instrument-serif), "Songti SC", SimSun, Georgia, serif; font-size: 28px; font-weight: 400; line-height: 1; }
+.atelier-text-link { display: inline-flex; align-items: center; gap: 5px; color: hsl(var(--navy)); font-size: 12px; font-weight: 700; }
+.atelier-recent-list, .atelier-shelf-list { border-bottom: 1px solid hsl(var(--border) / .82); }
+.atelier-recent-item, .atelier-shelf-item { display: flex; min-width: 0; align-items: center; gap: 13px; border-bottom: 1px solid hsl(var(--border) / .6); padding: 12px 4px; }
+.atelier-recent-item:last-child, .atelier-shelf-item:last-child { border-bottom: 0; }
+.atelier-recent-item:hover, .atelier-shelf-item:hover { background: hsl(var(--surface) / .45); }
+.atelier-recent-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.atelier-recent-title, .atelier-shelf-item strong { overflow-wrap: anywhere; font-family: var(--font-instrument-serif), "Songti SC", SimSun, Georgia, serif; font-size: 18px; font-weight: 400; line-height: 1.15; }
+.atelier-recent-author, .atelier-shelf-item small { overflow: hidden; color: hsl(var(--ink) / .55); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.atelier-recent-location { max-width: 150px; overflow: hidden; color: hsl(var(--ink) / .52); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.atelier-shelf-item { min-height: 64px; }
+.atelier-shelf-item span { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.atelier-empty-surface { display: flex; min-height: 184px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border-style: dashed; background: hsl(var(--surface) / .48); text-align: center; }
+.atelier-empty-surface p { margin: 5px 0 0; font-size: 14px; font-weight: 700; }
+.atelier-empty-surface span { max-width: 280px; color: hsl(var(--ink) / .55); font-size: 12px; line-height: 1.6; }
+.atelier-loading-row { height: 72px; margin-top: 12px; border: 1px solid hsl(var(--border) / .6); }
+.atelier-recent-item .book-cover { height: 58px; width: 42px; padding: 6px; border-radius: 1px; }
+.atelier-recent-item .book-cover > span:first-child { font-size: 6px; }
+.atelier-recent-item .book-cover > span:last-child { font-size: 8px !important; }
+
+.atelier-main .rounded-xl.border { border-radius: 3px; box-shadow: 0 8px 26px hsl(var(--ink) / .035); }
+.atelier-main input, .atelier-main textarea, .atelier-main select { border-radius: 3px; box-shadow: none; }
+.atelier-main button { border-radius: 3px; }
+.atelier-main h1.serif { font-weight: 400; letter-spacing: -.035em; }
+.atelier-main h2.serif, .atelier-main h3.serif { font-weight: 400; }
+.atelier-main .bg-surface { background-color: hsl(var(--surface) / .84); }
+.atelier-main .bg-paper-muted { background-color: hsl(var(--paper-muted) / .58); }
+.atelier-main .shadow-card, .atelier-main .shadow-lifted { box-shadow: 0 8px 26px hsl(var(--ink) / .055); }
+
+.atelier-bottom-nav { box-shadow: 0 -8px 30px hsl(var(--ink) / .08); }
+
+.entry-glow { background: radial-gradient(circle at 50% 46%, hsl(var(--brass) / .10), transparent 25%), linear-gradient(135deg, hsl(var(--surface) / .2), hsl(var(--surface-strong) / .24)); }
 .entry-shelf { min-height: 9rem; }
 .entry-shelf::before { position: absolute; inset: 22% 17% auto; height: 1px; background: hsl(var(--border) / .7); content: ""; box-shadow: 0 4.5rem hsl(var(--border) / .48); }
 .entry-book { position: relative; z-index: 1; box-shadow: inset -7px 0 0 hsl(var(--ink) / .13), 0 12px 20px hsl(var(--ink) / .16); }
@@ -96,12 +241,201 @@ details[open] > summary .motion-disclosure-icon { transform: rotate(180deg); }
 .entry-book-c { background: linear-gradient(155deg, #8b5548, #4d2b30); transform: rotate(3deg); }
 .entry-book-d { background: linear-gradient(155deg, #56704c, #293e32); transform: rotate(5deg); }
 
-@media (max-width: 639px) { form button[type="submit"] { width: 100%; } }
-
+@media (max-width: 1279px) {
+  .atelier-topbar-inner { gap: 12px; }
+  .atelier-shell-search { flex: 1; width: auto; max-width: 360px; margin-left: auto; }
+}
+@media (max-width: 980px) {
+  .atelier-home-masthead { grid-template-columns: minmax(0, 1fr) minmax(250px, .8fr); }
+  .atelier-record-panel { border-left: 0; border-top: 1px solid hsl(var(--border) / .82); padding: 20px 0 0; }
+  .atelier-home-image { min-height: 330px; }
+  .atelier-home-intro { grid-row: span 2; }
+  .atelier-stats { grid-template-columns: repeat(2, 1fr); }
+  .atelier-stat-line:nth-child(2) { border-right: 0; }
+  .atelier-home-lower { grid-template-columns: 1fr; }
+}
+@media (max-width: 639px) {
+  .atelier-topbar-inner { min-height: 64px; flex-wrap: wrap; padding: 8px 14px 10px; }
+  .atelier-brand { min-width: 0; }
+  .atelier-shell-search { order: 3; width: 100%; max-width: none; flex-basis: 100%; margin-left: 0; }
+  .atelier-main { min-height: calc(100vh - 116px); padding-top: 22px; }
+  .atelier-home-masthead { display: flex; flex-direction: column; gap: 18px; padding-top: 0; }
+  .atelier-home-intro { padding-top: 10px; }
+  .atelier-home-title { font-size: clamp(52px, 18vw, 76px); }
+  .atelier-home-subtitle { max-width: 100%; }
+  .atelier-home-actions { margin-top: 20px; }
+  .atelier-home-image { min-height: 235px; order: 2; }
+  .atelier-record-panel { order: 3; padding-top: 18px; }
+  .atelier-record-index { margin-top: 15px; }
+  .atelier-record-title { margin-top: 15px; font-size: 30px; }
+  .atelier-record-lines { margin-top: 18px; }
+  .atelier-stats { grid-template-columns: repeat(2, 1fr); }
+  .atelier-stat-line { min-height: 74px; padding: 12px 10px; }
+  .atelier-stat-line svg { height: 13px; width: 13px; }
+  .atelier-stat-value { font-size: 27px; }
+  .atelier-stat-label { font-size: 10px; }
+  .atelier-stat-detail { display: none; }
+  .atelier-home-lower { gap: 30px; padding-top: 28px; }
+  .atelier-recent-location { display: none; }
+  .atelier-recent-title { font-size: 16px; }
+  .atelier-section-title { font-size: 25px; }
+  .atelier-main h1.serif { font-size: 42px; }
+  form button[type="submit"] { width: 100%; }
+}
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .motion-press:active, .motion-book:hover, .motion-book:focus-visible, .entry-book-a, .entry-book-c, .entry-book-d { transform: none !important; }
 }
 
+.atelier-page { min-width: 0; padding-bottom: 32px; }
+.atelier-page-header { display: flex; min-height: 126px; align-items: flex-end; justify-content: space-between; gap: 24px; border-bottom: 1px solid hsl(var(--border) / .84); padding: 18px 0 24px; }
+.atelier-page-title { margin: 13px 0 0; font-size: clamp(43px, 5vw, 70px); font-weight: 400; letter-spacing: -.055em; line-height: .94; }
+.atelier-page-subtitle { max-width: 600px; margin: 16px 0 0; color: hsl(var(--ink) / .64); font-size: 15px; line-height: 1.7; }
+.atelier-page-aside { margin: 0 0 3px; color: hsl(var(--ink) / .42); font-size: 10px; font-weight: 800; letter-spacing: .18em; line-height: 1.8; text-align: right; }
+.atelier-tool-card { margin-top: 26px; background: hsl(var(--surface) / .72); }
+.atelier-search-form { display: flex; gap: 10px; }
+.atelier-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 15px; }
+.atelier-filter-label { margin-right: 4px; color: hsl(var(--ink) / .44); font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.atelier-notice { margin-top: 18px; border: 1px solid hsl(var(--warning) / .28); background: hsl(var(--warning) / .09); padding: 11px 14px; color: hsl(var(--ink)); font-size: 13px; }
+.atelier-results-wrap { margin-top: 24px; }
+.atelier-results-meta { display: flex; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid hsl(var(--border) / .76); padding-bottom: 11px; color: hsl(var(--ink) / .48); font-size: 11px; }
+.atelier-results-meta strong { color: hsl(var(--ink)); }
+.atelier-search-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.atelier-result-card { min-width: 0; background: hsl(var(--surface) / .72); }
+.atelier-result-card:hover { border-color: hsl(var(--brass) / .62); }
+.atelier-result-title { margin: 0; overflow-wrap: anywhere; font-family: var(--font-instrument-serif), "Songti SC", SimSun, Georgia, serif; font-size: 23px; font-weight: 400; line-height: 1.08; }
+.atelier-paper-mark { display: flex; height: 96px; width: 64px; flex-shrink: 0; align-items: center; justify-content: center; border: 1px solid hsl(var(--brass) / .5); background: hsl(var(--brass) / .09); color: hsl(var(--brass)); }
+.atelier-loading-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+.atelier-empty-panel, .atelier-search-hint { display: flex; min-height: 230px; flex-direction: column; align-items: center; justify-content: center; gap: 10px; margin-top: 22px; border: 1px dashed hsl(var(--border) / .9); background: hsl(var(--surface) / .42); text-align: center; }
+.atelier-empty-panel p, .atelier-search-hint p { margin: 3px 16px 0; font-family: var(--font-instrument-serif), serif; font-size: 24px; }
+.atelier-empty-panel span { max-width: 380px; color: hsl(var(--ink) / .52); font-size: 12px; }
 
+@media (max-width: 639px) {
+  .atelier-page-header { min-height: 0; align-items: flex-start; padding-top: 4px; }
+  .atelier-page-aside { display: none; }
+  .atelier-search-form { flex-direction: column; }
+  .atelier-search-results, .atelier-loading-grid { grid-template-columns: 1fr; }
+  .atelier-result-title { font-size: 21px; }
+}
+
+.atelier-manage-shell { margin-top: 26px; background: hsl(var(--surface) / .62); }
+.atelier-manage-tabs { display: grid; width: 100%; grid-template-columns: repeat(3, 1fr); gap: 0; border-radius: 0; border-bottom: 1px solid hsl(var(--border) / .8); background: transparent; padding: 0; }
+.atelier-manage-tabs button { position: relative; min-height: 48px; border-radius: 0; border-bottom: 2px solid transparent; }
+.atelier-manage-tabs button[aria-selected="true"] { background: transparent; box-shadow: none; color: hsl(var(--navy)); }
+.atelier-manage-tabs button[aria-selected="true"]::after { position: absolute; right: 15%; bottom: -1px; left: 15%; height: 2px; background: hsl(var(--brass)); content: ""; }
+.atelier-manage-shell [role="tabpanel"] { margin-top: 0; }
+.atelier-manage-panel { border: 0; background: transparent; box-shadow: none !important; }
+.atelier-manage-panel > div { padding-inline: 10px; }
+.atelier-manage-panel .atelier-panel-kicker { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; color: hsl(var(--ink) / .43); font-size: 10px; font-weight: 800; letter-spacing: .18em; }
+.atelier-manage-panel h3 { font-size: 28px; }
+.atelier-create-form { display: flex; max-width: 650px; gap: 10px; margin-top: 17px; }
+.atelier-create-form button { width: 48px; }
+.atelier-meta-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; margin-top: 20px; border-top: 1px solid hsl(var(--border) / .7); }
+.atelier-meta-row { display: flex; min-height: 48px; align-items: center; gap: 10px; border-bottom: 1px solid hsl(var(--border) / .6); color: hsl(var(--ink) / .72); font-size: 13px; }
+.atelier-meta-dot { height: 5px; width: 5px; flex-shrink: 0; border-radius: 50%; background: hsl(var(--brass)); }
+.atelier-inline-empty { grid-column: 1 / -1; margin: 0; padding: 21px 0; color: hsl(var(--ink) / .5); font-size: 13px; line-height: 1.7; }
+.atelier-shelf-rows { margin-top: 20px; border-top: 1px solid hsl(var(--border) / .7); }
+.atelier-shelf-row { border-bottom: 1px solid hsl(var(--border) / .6); padding: 8px 0; }
+.atelier-shelf-row-main { display: flex; min-height: 49px; align-items: center; gap: 11px; }
+.atelier-shelf-row-main details summary { border-radius: 3px; }
+.atelier-edit-row { display: flex; gap: 8px; border-top: 1px solid hsl(var(--border) / .55); padding: 10px 0 2px 26px; }
+.atelier-edit-row input { flex: 1; }
+
+.atelier-notice.is-success { border-color: hsl(var(--success) / .22); background: hsl(var(--success) / .08); color: hsl(var(--success)); }
+.atelier-notice.is-danger { border-color: hsl(var(--danger) / .22); background: hsl(var(--danger) / .08); color: hsl(var(--danger)); }
+
+@media (max-width: 639px) {
+  .atelier-manage-tabs button { padding-inline: 8px; font-size: 12px; }
+  .atelier-meta-list { grid-template-columns: 1fr; }
+  .atelier-shelf-row-main { align-items: flex-start; padding-top: 8px; }
+  .atelier-shelf-row-main > button { margin-left: auto; }
+  .atelier-edit-row { padding-left: 0; }
+}
+
+.atelier-add-page .atelier-page-header { margin-bottom: 0; }
+.atelier-add-shell { margin-top: 26px; background: hsl(var(--surface) / .72); }
+.atelier-add-shell [role="tablist"] { border-radius: 0; border-bottom: 1px solid hsl(var(--border) / .8); background: transparent; }
+.atelier-add-shell [role="tab"] { border-radius: 0; }
+.atelier-add-shell [role="tab"][aria-selected="true"] { color: hsl(var(--navy)); }
+.atelier-add-shell details { background: hsl(var(--surface) / .35); }
+.atelier-add-page .rounded-xl.border { background: hsl(var(--surface) / .68); }
+
+.overflow-wrap-anywhere { overflow-wrap: anywhere; }
+.atelier-book-card { min-width: 0; background: hsl(var(--surface) / .72); }
+.atelier-book-card:hover { border-color: hsl(var(--brass) / .62); }
+.atelier-book-title { margin: 0; overflow-wrap: anywhere; font-family: var(--font-instrument-serif), "Songti SC", SimSun, Georgia, serif; font-size: 24px; font-weight: 400; line-height: 1.04; }
+.atelier-book-list-row { display: flex; min-width: 0; min-height: 74px; align-items: center; gap: 13px; border-bottom: 1px solid hsl(var(--border) / .65); padding: 10px 14px; }
+.atelier-book-list-row:hover { background: hsl(var(--surface) / .55); }
+.atelier-list-title { margin: 0; overflow-wrap: anywhere; font-family: var(--font-instrument-serif), "Songti SC", SimSun, Georgia, serif; font-size: 18px; line-height: 1.15; }
+
+.atelier-library-toolbar { margin-top: 26px; background: hsl(var(--surface) / .72); }
+.atelier-library-toolbar-main { display: flex; align-items: center; gap: 10px; }
+.atelier-library-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.atelier-library-actions select { min-height: 40px; width: auto; max-width: 154px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface) / .86); padding: 0 11px; color: hsl(var(--ink) / .75); font-size: 12px; }
+.atelier-library-summary { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; color: hsl(var(--ink) / .47); font-size: 11px; }
+.atelier-library-summary button { color: hsl(var(--navy)); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.atelier-selection-bar { display: flex; min-height: 48px; align-items: center; gap: 9px; margin: 16px 0 12px; border-top: 1px solid hsl(var(--brass) / .45); border-bottom: 1px solid hsl(var(--brass) / .25); background: hsl(var(--brass) / .07); padding: 6px 10px; font-size: 13px; }
+.atelier-library-list { overflow: hidden; border: 1px solid hsl(var(--border) / .82); background: hsl(var(--surface) / .62); }
+.atelier-library-list .atelier-book-card { border: 0; border-bottom: 1px solid hsl(var(--border) / .65); border-radius: 0; box-shadow: none; }
+.atelier-library-list .atelier-book-card > div { padding: 10px 14px; }
+.atelier-library-list .atelier-book-card .book-cover { height: 72px; width: 52px; padding: 7px; border-radius: 1px; }
+.atelier-library-list .atelier-book-card .book-cover > span:first-child { font-size: 6px; }
+.atelier-library-list .atelier-book-card .book-cover > span:last-child { font-size: 8px !important; }
+.atelier-pagination { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 20px; }
+.atelier-pagination button { display: inline-flex; min-height: 40px; min-width: 40px; align-items: center; justify-content: center; border: 1px solid hsl(var(--border)); background: hsl(var(--surface) / .72); color: hsl(var(--ink) / .68); font-size: 12px; }
+.atelier-pagination button.is-current { border-color: hsl(var(--navy)); background: hsl(var(--navy)); color: white; }
+
+@media (max-width: 980px) {
+  .atelier-library-toolbar-main { align-items: stretch; flex-direction: column; }
+  .atelier-library-actions select { flex: 1; max-width: none; }
+}
+@media (max-width: 639px) {
+  .atelier-library-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .atelier-library-actions select, .atelier-library-actions button { width: 100%; max-width: none; }
+  .atelier-library-list .atelier-book-card > div { padding-inline: 9px; }
+  .atelier-library-list .atelier-book-card .atelier-book-title { font-size: 19px; }
+}
+
+.atelier-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 26px; }
+.atelier-settings-card { min-width: 0; background: hsl(var(--surface) / .72); }
+.atelier-panel-kicker { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; color: hsl(var(--ink) / .43); font-size: 10px; font-weight: 800; letter-spacing: .18em; }
+.atelier-language-option { min-height: 76px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface) / .48); padding: 13px; text-align: left; }
+.atelier-language-option:hover { border-color: hsl(var(--navy) / .6); }
+.atelier-language-option.is-selected { border-color: hsl(var(--navy)); background: hsl(var(--navy) / .07); box-shadow: inset 3px 0 0 hsl(var(--brass)); }
+.atelier-settings-note { grid-column: 1 / -1; background: hsl(var(--surface) / .45); }
+.atelier-settings-brand { margin-top: 8px; font-family: var(--font-instrument-serif), serif; font-size: 29px; }
+@media (max-width: 639px) { .atelier-settings-grid { grid-template-columns: 1fr; } .atelier-settings-note { grid-column: auto; } }
+
+details > summary { list-style: none; }
+details > summary::marker { display: none; content: ""; }
+details > summary::-webkit-details-marker { display: none; }
+.atelier-import-page > div:first-child, .atelier-detail-page > div:first-child { border-bottom: 1px solid hsl(var(--border) / .84); padding-bottom: 24px; }
+.atelier-import-page > div:first-child h1, .atelier-detail-page > div:first-child h1 { font-family: var(--font-instrument-serif), "Songti SC", SimSun, Georgia, serif; font-size: clamp(43px, 5vw, 70px); font-weight: 400; letter-spacing: -.055em; line-height: .94; }
+.atelier-import-page > .grid { margin-top: 26px; }
+.atelier-import-page .rounded-xl.border, .atelier-detail-page .rounded-xl.border { background: hsl(var(--surface) / .72); }
+.atelier-import-page textarea { min-height: 260px; background: hsl(var(--surface) / .55); }
+.atelier-detail-page .book-cover { border-radius: 2px; }
+.atelier-detail-page > .flex.flex-col { border-bottom: 1px solid hsl(var(--border) / .78); padding-bottom: 26px; }
+.atelier-detail-page > .flex.flex-col h1 { overflow-wrap: anywhere; font-family: var(--font-instrument-serif), "Songti SC", SimSun, Georgia, serif; font-size: clamp(38px, 5vw, 65px); font-weight: 400; line-height: .98; }
+.atelier-detail-page details { background: hsl(var(--paper-muted) / .28); }
+.atelier-detail-page .motion-disclosure-summary { color: hsl(var(--navy)); }
+.atelier-detail-page [aria-live="polite"] { min-height: 32px; }
+
+.atelier-page > .mb-7 { align-items: flex-end; border-bottom: 1px solid hsl(var(--border) / .84); padding-bottom: 24px; }
+.atelier-page > .mb-7 h1 { margin-top: 13px; font-family: var(--font-instrument-serif), "Songti SC", SimSun, Georgia, serif; font-size: clamp(43px, 5vw, 70px); font-weight: 400; letter-spacing: -.055em; line-height: .94; }
+.atelier-page > .mb-7 > div > p:last-child { max-width: 600px; margin-top: 16px; color: hsl(var(--ink) / .64); font-size: 15px; line-height: 1.7; }
+.atelier-wishlist-page > .grid { margin-top: 26px; }
+.atelier-wishlist-page > .grid > .rounded-xl.border { background: hsl(var(--surface) / .72); }
+.atelier-wishlist-page > .grid > .rounded-xl.border:hover { border-color: hsl(var(--brass) / .62); }
+.atelier-research-page > .grid { margin-top: 26px; gap: 18px; }
+.atelier-research-page > .grid > .rounded-xl.border { border-radius: 3px; }
+.atelier-research-page > .grid > .bg-navy { background: hsl(var(--navy) / .96); }
+@media (max-width: 639px) {
+  .atelier-page > .mb-7 { align-items: flex-start; }
+  .atelier-page > .mb-7 h1 { font-size: 42px; }
+}
+
+@media (min-width: 1280px) { .atelier-desktop-nav { display: flex; } }
+
+@media (max-width: 639px) { .atelier-create-form button[type=submit] { width: 48px; min-width: 48px; flex: 0 0 48px; } .atelier-create-form input { min-width: 0; } }

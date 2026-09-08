@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BookOpen, Check, ChevronDown, Loader2, Save } from "lucide-react";
@@ -60,7 +60,7 @@ export function BookDetailPage() {
   const book = bookQuery.data;
   const shelves = metadataQuery.data?.shelves ?? [];
   const categories = metadataQuery.data?.categories ?? [];
-  return <AppShell><div className="space-y-6">
+  return <AppShell><div className="atelier-page atelier-detail-page space-y-6">
     <Link href="/library" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-navy hover:bg-paper-muted"><ArrowLeft className="h-4 w-4" />返回书库</Link>
     <div className="flex flex-col gap-5 sm:flex-row sm:items-end"><CoverArt title={draft.title} variant={book.edition.coverUrl} /><div><p className="mb-2 text-xs font-bold uppercase tracking-[.18em] text-brass">BOOK RECORD</p><h1 className="serif text-4xl font-semibold tracking-tight sm:text-5xl">{draft.title}</h1><p className="mt-2 text-ink/60">{draft.authors || "未记录作者"}</p><div className="mt-4"><BookplateActions copyId={copyId} /></div></div></div>
     {notice ? <p role="status" className="motion-feedback-in flex items-center gap-2 rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"><Check className="h-4 w-4" />{notice}</p> : null}

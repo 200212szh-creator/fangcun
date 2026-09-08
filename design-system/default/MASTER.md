@@ -32,7 +32,7 @@ No ad-hoc screen-level brand colors. Use semantic tokens or existing book-cover 
 
 ## Layout and interaction
 
-- Desktop: persistent sidebar; mobile: five-item bottom navigation with labels and icons.
+- Desktop: slim horizontal topbar; mobile: five-item bottom navigation with labels and icons plus an accessible drawer.
 - Active navigation uses a soft paper/navy state and a 2px left indicator; never use a gold capsule as the active container.
 - Keep the primary CTA singular per screen. The app shell header contains search only; add-book CTA belongs in the home Hero, with unobtrusive actions elsewhere.
 - Interactive targets are at least 44px, have visible focus, pointer/touch feedback, and 150–300ms transitions.
@@ -54,3 +54,19 @@ No ad-hoc screen-level brand colors. Use semantic tokens or existing book-cover 
 - Entry hierarchy is fixed: Chinese main title, English secondary, German tertiary. UI locale does not hide any of the three motto lines.
 - The entry page uses a CSS-based abstract shelf, no remote video, a language toggle, a reduced-motion-safe CTA, and a localStorage “enter directly next time” preference.
 - The mark is an SVG with three simplified book spines, readable at 20/32/64px in deep/light variants with a descriptive accessible label.
+
+## Editorial Atelier implementation
+
+- Desktop application chrome is a slim horizontal topbar: brand at left, primary navigation in the middle, and one global search field at right. At narrower widths the navigation becomes an accessible drawer plus a five-item bottom bar.
+- The working canvas uses public/editorial-atelier/paper-texture.jpg as a quiet local paper texture and the grid remains a low-contrast CSS utility. No screenshot or full-page image is used as a background.
+- The homepage uses public/editorial-atelier/hero-shelf.png only as an independent editorial shelf photograph. Content beside it remains real catalog/research data from the local APIs.
+- Display type is local Instrument Serif with the existing Chinese Songti fallbacks; interface text remains local Plus Jakarta Sans with system Chinese fallbacks. All local fonts keep font-display: swap.
+- Interactive targets remain at least 44px. The motion-* primitives are short, interruptible, and retain text/icon/ARIA state feedback for success, errors, loading, and reduced motion.
+- The catalog view renders a compact directory with local client pagination at 30 records per page, searchable title/author/ISBN/tags, and category/shelf/status/sort filters. The formal database is never used for fixtures.
+
+### Acceptance notes
+
+- / keeps the three-language brand hierarchy and one primary entry action.
+- /home is the real-data workspace: zero-state values are derived from catalog and research APIs, and no discovery request is triggered.
+- /add, /search, /library, /wishlist, /research, /manage, /import, /settings, and /books/[copyId] preserve their existing CRUD or lookup paths while sharing the Editorial Atelier surface, typography, borders, and responsive behavior.
+- Formal data backup before the redesign: D:\方寸数据\backups\pre-upgrade\fangcun-pre-upgrade-2026-09-08T13-38-06-108Z.db; SHA-256 b0ff70bc1d2d69184fa1d7a2e71dd0c19fe5f9aa494b5c44382f715f20daa69b.

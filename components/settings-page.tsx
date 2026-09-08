@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { Database, Download, Languages } from "lucide-react";
@@ -14,15 +14,26 @@ export function SettingsPage() {
   const { locale, setLocale } = useAppLocale();
 
   return <AppShell>
-    <div className="space-y-7">
-      <div><p className="mb-2 text-xs font-bold uppercase tracking-[.18em] text-brass">SYSTEM</p><h1 className="serif text-4xl font-semibold tracking-tight text-ink sm:text-5xl">{t("settings.title")}</h1><p className="mt-3 max-w-2xl text-base leading-7 text-ink/65">{t("settings.subtitle")}</p></div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Languages className="h-5 w-5 text-brass" aria-hidden="true" />{t("settings.appearance")}</CardTitle><CardDescription>{t("settings.languageHint")}</CardDescription></CardHeader><CardContent><div className="grid grid-cols-2 gap-3">{(["zh", "en"] as const).map((value) => <button aria-pressed={locale === value} type="button" key={value} onClick={() => setLocale(value)} className={`min-h-16 cursor-pointer rounded-lg border p-3 text-left motion-press ${locale === value ? "border-navy bg-navy/5" : "border-border hover:border-navy"}`}><p className="font-semibold">{value === "zh" ? t("common.zh") : t("common.en")}</p><p className="mt-1 text-xs text-ink/55">{value === "zh" ? "简体中文" : "English interface"}</p></button>)}</div></CardContent></Card>
-        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-brass" aria-hidden="true" />{t("settings.data")}</CardTitle><CardDescription>{t("settings.backupHint")}</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-3"><a href="/api/export?format=json" download><Button variant="secondary"><Download className="h-4 w-4" aria-hidden="true" />{t("settings.exportJson")}</Button></a><a href="/api/export?format=csv" download><Button variant="secondary"><Download className="h-4 w-4" aria-hidden="true" />{t("settings.exportCsv")}</Button></a><Link href="/import"><Button variant="brass"><Download className="h-4 w-4" aria-hidden="true" />{t("settings.importCsv")}</Button></Link></CardContent></Card>
-        <Card className="lg:col-span-2"><CardHeader><CardTitle>{t("settings.entry")}</CardTitle><CardDescription>{t("settings.entryHint")}</CardDescription></CardHeader><CardContent><Link href="/"><Button variant="secondary">{t("settings.viewEntry")}</Button></Link></CardContent></Card>
-        <Card className="border-border/70 bg-surface/60 lg:col-span-2"><CardContent className="p-6"><p className="text-xs font-bold uppercase tracking-[.14em] text-ink/45">{t("settings.local")}</p><p className="serif mt-2 text-2xl font-semibold text-ink">{brand.nameZh} · {brand.nameEn}</p><p className="mt-2 max-w-2xl text-sm leading-6 text-ink/60">{t("settings.localHint")}</p></CardContent></Card>
+    <div className="atelier-page atelier-settings-page">
+      <div className="atelier-page-header">
+        <div><p className="atelier-kicker">SYSTEM</p><h1 className="atelier-display atelier-page-title">{t("settings.title")}</h1><p className="atelier-page-subtitle">{t("settings.subtitle")}</p></div>
+        <p className="atelier-page-aside">LOCAL FIRST<br />YOUR DATA / YOUR PLACE</p>
+      </div>
+      <div className="atelier-settings-grid">
+        <Card className="atelier-settings-card">
+          <CardHeader><div className="atelier-panel-kicker"><Languages className="h-4 w-4 text-brass" aria-hidden="true" /><span>LANGUAGE</span></div><CardTitle>{t("settings.appearance")}</CardTitle><CardDescription>{t("settings.languageHint")}</CardDescription></CardHeader>
+          <CardContent><div className="grid grid-cols-2 gap-3">{(["zh", "en"] as const).map((value) => <button aria-pressed={locale === value} type="button" key={value} onClick={() => setLocale(value)} className={"atelier-language-option motion-press " + (locale === value ? "is-selected" : "")}><p className="font-semibold">{value === "zh" ? t("common.zh") : t("common.en")}</p><p className="mt-1 text-xs text-ink/55">{value === "zh" ? "简体中文" : "English interface"}</p></button>)}</div></CardContent>
+        </Card>
+        <Card className="atelier-settings-card">
+          <CardHeader><div className="atelier-panel-kicker"><Database className="h-4 w-4 text-brass" aria-hidden="true" /><span>ARCHIVE</span></div><CardTitle>{t("settings.data")}</CardTitle><CardDescription>{t("settings.backupHint")}</CardDescription></CardHeader>
+          <CardContent className="flex flex-wrap gap-3"><a href="/api/export?format=json" download><Button variant="secondary"><Download className="h-4 w-4" aria-hidden="true" />{t("settings.exportJson")}</Button></a><a href="/api/export?format=csv" download><Button variant="secondary"><Download className="h-4 w-4" aria-hidden="true" />{t("settings.exportCsv")}</Button></a><Link href="/import"><Button variant="brass"><Download className="h-4 w-4" aria-hidden="true" />{t("settings.importCsv")}</Button></Link></CardContent>
+        </Card>
+        <Card className="atelier-settings-card">
+          <CardHeader><CardTitle>{t("settings.entry")}</CardTitle><CardDescription>{t("settings.entryHint")}</CardDescription></CardHeader>
+          <CardContent><Link href="/"><Button variant="secondary">{t("settings.viewEntry")}</Button></Link></CardContent>
+        </Card>
+        <Card className="atelier-settings-note"><CardContent className="p-6"><p className="atelier-kicker">{t("settings.local")}</p><p className="atelier-settings-brand">{brand.nameZh} · {brand.nameEn}</p><p className="mt-2 max-w-2xl text-sm leading-6 text-ink/60">{t("settings.localHint")}</p></CardContent></Card>
       </div>
     </div>
   </AppShell>;
 }
-

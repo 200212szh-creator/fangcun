@@ -1,34 +1,20 @@
-﻿"use client";
+"use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BookMarked, Bookmark, FolderHeart, LibraryBig, MapPin, Plus, Search } from "lucide-react";
+import { ArrowUpRight, BookMarked, Bookmark, FolderHeart, LibraryBig, MapPin, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/app-shell";
-import { BookCard } from "@/components/book-card";
+import { CoverArt } from "@/components/cover-art";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import type { OwnedCopy, ResearchWork, ShelfLocation } from "@/lib/types";
 
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) throw new Error("request-failed");
   return response.json() as Promise<T>;
-}
-
-function Stat({ label, value, detail, icon: Icon }: { label: string; value: number; detail: string; icon: React.ElementType }) {
-  return (
-    <Card className="border-transparent bg-surface/90">
-      <CardContent className="p-4 sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="text-xs font-semibold uppercase tracking-[.12em] text-ink/50">{label}</p>
-          <Icon className="h-4 w-4 shrink-0 text-brass" aria-hidden="true" />
-        </div>
-        <p className="serif text-4xl font-semibold tabular-nums text-ink">{value}</p>
-        <p className="mt-1 text-xs text-ink/50">{detail}</p>
-      </CardContent>
-    </Card>
-  );
 }
 
 function getShelfLabel(shelf: ShelfLocation, byId: Map<string, ShelfLocation>) {
@@ -52,62 +38,104 @@ function shelfContainsBook(book: OwnedCopy, shelf: ShelfLocation, label: string)
   return location === label || parts.includes(shelf.name) || location.includes(shelf.name);
 }
 
+function StatLine({ label, value, detail, icon: Icon }: { label: string; value: number; detail: string; icon: React.ElementType }) {
+  return <div className="atelier-stat-line">
+    <Icon className="h-4 w-4 text-brass" aria-hidden="true" />
+    <span className="atelier-stat-value">{value}</span>
+    <span className="atelier-stat-label">{label}</span>
+    <span className="atelier-stat-detail">{detail}</span>
+  </div>;
+}
+
 function HomeContent() {
   const t = useTranslations();
-  const booksQuery = useQuery({ queryKey: ["books"], queryFn: () => getJson<{ items: OwnedCopy[] }>("/api/catalog/books") });
-  const metadataQuery = useQuery({ queryKey: ["metadata"], queryFn: () => getJson<{ shelves: ShelfLocation[] }>("/api/catalog/metadata") });
-  const researchQuery = useQuery({ queryKey: ["research"], queryFn: () => getJson<{ works: ResearchWork[] }>("/api/catalog/research") });
-  const books = booksQuery.data?.items ?? [];
+  const booksQuery = useQuery({ queryKey: ["books"], queryFn: () => getJson<{ items: OwnedCopy[] }>("/api/catalog/books"), staleTime: 30_000 });
+  const metadataQuery = useQuery({ queryKey: ["metadata"], queryFn: () => getJson<{ shelves: ShelfLocation[] }>("/api/catalog/metadata"), staleTime: 60_000 });
+  const researchQuery = useQuery({ queryKey: ["research"], queryFn: () => getJson<{ works: ResearchWork[] }>("/api/catalog/research"), staleTime: 30_000 });
+  const books = [...(booksQuery.data?.items ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const shelves = (metadataQuery.data?.shelves ?? []).filter((shelf) => shelf.active);
   const byId = new Map(shelves.map((shelf) => [shelf.id, shelf]));
   const shelfRows = shelves.map((shelf) => {
     const label = getShelfLabel(shelf, byId);
     return { shelf, label, count: books.filter((book) => shelfContainsBook(book, shelf, label)).length };
   });
+  const featured = books[0];
 
-  return (
-    <div className="space-y-9">
-      <section className="relative overflow-hidden rounded-2xl border border-navy/20 bg-navy text-white shadow-lifted">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_10%,rgba(215,162,58,.26),transparent_35%),linear-gradient(120deg,rgba(10,25,42,.08),rgba(10,25,42,.62))]" aria-hidden="true" />
-        <div className="relative p-6 sm:p-10 lg:p-12">
-          <div className="max-w-3xl">
-            <p className="mb-4 text-xs font-bold uppercase tracking-[.22em] text-brass">{t("home.eyebrow")}</p>
-            <h1 className="serif max-w-2xl text-4xl font-semibold leading-[1.03] tracking-tight sm:text-6xl">{t("home.title")}</h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-white/75">{t("home.subtitle")}</p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link href="/add"><Button className="min-h-12" size="lg" variant="brass"><Plus className="h-4 w-4" aria-hidden="true" />{t("home.addBook")}</Button></Link>
-              <Link href="/search"><Button className="min-h-12 border-white/30 bg-white/10 text-white hover:bg-white/15 hover:text-white" size="lg" variant="secondary"><Search className="h-4 w-4" aria-hidden="true" />{t("home.searchLibrary")}</Button></Link>
-            </div>
-          </div>
+  return <div className="atelier-home">
+    <section className="atelier-home-masthead" aria-labelledby="home-title">
+      <div className="atelier-home-intro">
+        <p className="atelier-kicker">{t("home.eyebrow")}</p>
+        <h1 id="home-title" className="atelier-display atelier-home-title">{t("home.title")}</h1>
+        <p className="atelier-home-subtitle">{t("home.subtitle")}</p>
+        <div className="atelier-home-actions">
+          <Link href="/add"><Button variant="brass" size="lg"><Plus className="h-4 w-4" aria-hidden="true" />{t("home.addBook")}</Button></Link>
+          <Link href="/search"><Button variant="secondary" size="lg"><Search className="h-4 w-4" aria-hidden="true" />{t("home.searchLibrary")}</Button></Link>
         </div>
-      </section>
-
-      <section aria-label={t("home.statsLabel")} className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label={t("home.statsBooks")} value={books.length} detail={t("home.statsDetail")} icon={LibraryBig} />
-        <Stat label={t("home.statsReading")} value={books.filter((book) => book.readingStatus === "reading").length} detail={t("status.reading")} icon={BookMarked} />
-        <Stat label={t("home.statsUnread")} value={books.filter((book) => book.readingStatus === "unread").length} detail={t("status.unread")} icon={Bookmark} />
-        <Stat label={t("home.statsPapers")} value={researchQuery.data?.works.length ?? 0} detail={t("nav.research")} icon={FolderHeart} />
-      </section>
-
-      <div className="grid gap-9 xl:grid-cols-[1.35fr_.65fr]">
-        <section>
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="serif text-2xl font-semibold text-ink">{t("home.recent")}</h2>
-            <Link className="flex min-h-11 items-center gap-1 rounded-md px-2 text-sm font-semibold text-navy motion-press hover:bg-paper-muted" href="/library">{t("common.viewAll")}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
-          </div>
-          {booksQuery.isLoading ? <div className="grid gap-4 sm:grid-cols-2"><div className="h-60 motion-skeleton rounded-xl border border-border bg-surface/70" /><div className="h-60 motion-skeleton rounded-xl border border-border bg-surface/70" /></div> : books.length ? <div className="grid gap-4 sm:grid-cols-2">{books.slice(0, 4).map((book) => <BookCard key={book.id} book={book} />)}</div> : <Card className="border-dashed bg-surface/65"><CardContent className="flex min-h-56 flex-col items-center justify-center p-6 text-center"><LibraryBig className="mb-3 h-8 w-8 text-brass/70" aria-hidden="true" /><p className="font-semibold text-ink">{t("home.emptyRecent")}</p><p className="mt-2 max-w-sm text-sm leading-6 text-ink/55">{t("home.emptyRecentHint")}</p><Link className="mt-5" href="/add"><Button variant="brass"><Plus className="h-4 w-4" aria-hidden="true" />{t("home.addBook")}</Button></Link></CardContent></Card>}
-        </section>
-
-        <section>
-          <div className="mb-4 flex items-center justify-between gap-4"><h2 className="serif text-2xl font-semibold text-ink">{t("home.shelves")}</h2><Link className="flex min-h-11 items-center gap-1 rounded-md px-2 text-sm font-semibold text-navy motion-press hover:bg-paper-muted" href="/manage">{t("common.manage")}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></div>
-          {metadataQuery.isLoading ? <div className="h-56 motion-skeleton rounded-xl border border-border bg-surface/70" /> : shelfRows.length ? <Card><CardContent className="space-y-1 p-4">{shelfRows.map(({ shelf, label, count }) => <Link className="flex min-h-14 items-center gap-3 rounded-lg px-2 motion-press hover:bg-paper-muted" href={`/library?location=${encodeURIComponent(shelf.name)}`} key={shelf.id}><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paper-muted text-navy"><MapPin className="h-4 w-4" aria-hidden="true" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{label}</p><p className="text-xs text-ink/55">{count} {t("home.shelfBooks")}</p></div><ArrowRight className="h-4 w-4 shrink-0 text-ink/30" aria-hidden="true" /></Link>)}</CardContent></Card> : <Card className="border-dashed bg-surface/65"><CardContent className="flex min-h-56 flex-col items-center justify-center p-6 text-center"><MapPin className="mb-3 h-8 w-8 text-brass/70" aria-hidden="true" /><p className="font-semibold text-ink">{t("home.noShelves")}</p><p className="mt-2 max-w-sm text-sm leading-6 text-ink/55">{t("home.noShelvesHint")}</p><Link className="mt-5" href="/manage?focus=shelf"><Button variant="secondary"><Plus className="h-4 w-4" aria-hidden="true" />{t("home.createShelf")}</Button></Link></CardContent></Card>}
-        </section>
+        <div className="atelier-rule mt-8" />
+        <p className="atelier-note mt-4">LOCAL FIRST · {t("home.statusLine")}</p>
       </div>
-    </div>
-  );
+
+      <figure className="atelier-home-image">
+        <Image src="/editorial-atelier/hero-shelf.png" alt="温暖纸张与木质书架上的藏书" fill priority sizes="(max-width: 900px) 100vw, 48vw" />
+        <figcaption>{t("welcome.visualNote")}</figcaption>
+      </figure>
+
+      <aside className="atelier-record-panel" aria-label="BOOK RECORD">
+        <p className="atelier-kicker">BOOK RECORD</p>
+        {featured ? <Link href={"/books/" + featured.id} className="atelier-record-link motion-press">
+          <p className="atelier-record-index">01 / {t("home.recent")}</p>
+          <h2 className="atelier-record-title">{featured.edition.title}</h2>
+          <p className="atelier-record-author">{featured.edition.authors.join(" · ") || "—"}</p>
+          <div className="atelier-record-lines">
+            <span>{featured.edition.publicationYear || "—"}</span>
+            <span>{featured.location || t("library.location")}</span>
+            <span>{featured.edition.isbn13 || featured.edition.format || "—"}</span>
+          </div>
+          <span className="atelier-record-cta">{t("common.viewAll")} <ArrowUpRight className="h-4 w-4" aria-hidden="true" /></span>
+        </Link> : <div className="atelier-record-empty"><LibraryBig className="h-6 w-6 text-brass" aria-hidden="true" /><p>{t("home.emptyRecent")}</p><span>{t("home.emptyRecentHint")}</span></div>}
+      </aside>
+    </section>
+
+    <section className="atelier-stats" aria-label={t("home.statsLabel")}>
+      <StatLine label={t("home.statsBooks")} value={books.length} detail={t("home.statsDetail")} icon={LibraryBig} />
+      <StatLine label={t("home.statsReading")} value={books.filter((book) => book.readingStatus === "reading").length} detail={t("status.reading")} icon={BookMarked} />
+      <StatLine label={t("home.statsUnread")} value={books.filter((book) => book.readingStatus === "unread").length} detail={t("status.unread")} icon={Bookmark} />
+      <StatLine label={t("home.statsPapers")} value={researchQuery.data?.works.length ?? 0} detail={t("nav.research")} icon={FolderHeart} />
+    </section>
+
+    <section className="atelier-home-lower">
+      <div className="atelier-section-block">
+        <div className="atelier-section-heading">
+          <div><p className="atelier-kicker">COLLECTION</p><h2 className="atelier-section-title">{t("home.recent")}</h2></div>
+          <Link className="atelier-text-link" href="/library">{t("common.viewAll")} <ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>
+        </div>
+        {booksQuery.isLoading ? <div className="atelier-loading-row motion-skeleton" /> : books.length ? <div className="atelier-recent-list">
+          {books.slice(0, 4).map((book, index) => <Link href={"/books/" + book.id} className="atelier-recent-item motion-book" key={book.id} style={{ "--motion-delay": index * 25 + "ms" } as React.CSSProperties}>
+            <CoverArt title={book.edition.title} variant={book.edition.coverUrl} compact />
+            <span className="atelier-recent-copy"><span className="atelier-recent-title">{book.edition.title}</span><span className="atelier-recent-author">{book.edition.authors.join(" · ") || "—"}</span></span>
+            <span className="atelier-recent-location">{book.location || "—"}</span>
+            <ArrowUpRight className="h-4 w-4 text-ink/35" aria-hidden="true" />
+          </Link>)}
+        </div> : <Card className="atelier-empty-surface"><LibraryBig className="h-6 w-6 text-brass" aria-hidden="true" /><p>{t("home.emptyRecent")}</p><span>{t("home.emptyRecentHint")}</span></Card>}
+      </div>
+
+      <div className="atelier-section-block">
+        <div className="atelier-section-heading">
+          <div><p className="atelier-kicker">SHELVES</p><h2 className="atelier-section-title">{t("home.shelves")}</h2></div>
+          <Link className="atelier-text-link" href="/manage">{t("common.manage")} <ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>
+        </div>
+        {metadataQuery.isLoading ? <div className="atelier-loading-row motion-skeleton" /> : shelfRows.length ? <div className="atelier-shelf-list">
+          {shelfRows.map(({ shelf, label, count }) => <Link className="atelier-shelf-item motion-press" href={"/library?location=" + encodeURIComponent(shelf.name)} key={shelf.id}>
+            <MapPin className="h-4 w-4 text-brass" aria-hidden="true" />
+            <span><strong>{label}</strong><small>{count} {t("home.shelfBooks")}</small></span>
+            <ArrowUpRight className="h-4 w-4 text-ink/35" aria-hidden="true" />
+          </Link>)}
+        </div> : <Card className="atelier-empty-surface"><MapPin className="h-6 w-6 text-brass" aria-hidden="true" /><p>{t("home.noShelves")}</p><span>{t("home.noShelvesHint")}</span><Link href="/manage?focus=shelf"><Button variant="secondary" size="sm"><Plus className="h-4 w-4" aria-hidden="true" />{t("home.createShelf")}</Button></Link></Card>}
+      </div>
+    </section>
+  </div>;
 }
 
 export function HomePage() {
   return <AppShell><HomeContent /></AppShell>;
 }
-
