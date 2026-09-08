@@ -26,3 +26,12 @@ Full-site visual refactor using the local Editorial Atelier reference and the im
 P0: none recorded.
 P1: none recorded.
 P2: none recorded while in progress.
+
+## Latest verification evidence
+
+- Full route overflow scan: passed at 1440×778 and 390×844 for `/`, `/home`, `/add`, `/library`, `/search`, `/wishlist`, `/research`, `/manage`, `/import`, and `/settings`; no horizontal overflow detected.
+- Interaction regression on isolated `data/e2e-library.db`: mobile drawer open/close, delayed search loading/result, title candidate → edition → confirmation add flow, automatic shelf coordinate, save-success feedback, and no-data/1/5/101 data rendering all passed. The 101-item check rendered 30 cards with 4 pagination buttons.
+- Static checks: `npm run typecheck`, `npm run lint`, `npm test` (8 tests), `npm run build`, and an isolated standalone release smoke all passed.
+- Standalone release smoke: build `GvGbCaBTvxoo10hKN-lKd`; health ok; all 11 available routes returned HTTP 200 with styles loaded and no horizontal overflow.
+- Formal release switch: pending explicit authorization because it will restart the localhost:3000 service and operate the formal service pointer; the formal database and current release remain unchanged.
+- Public GitHub push: pending explicit confirmation that the current project may be disclosed to the public repository.
