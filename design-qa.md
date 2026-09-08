@@ -1,6 +1,6 @@
 # Editorial Atelier design QA
 
-final result: in_progress
+final result: passed
 
 ## Scope
 
@@ -33,5 +33,7 @@ P2: none recorded while in progress.
 - Interaction regression on isolated `data/e2e-library.db`: mobile drawer open/close, delayed search loading/result, title candidate → edition → confirmation add flow, automatic shelf coordinate, save-success feedback, and no-data/1/5/101 data rendering all passed. The 101-item check rendered 30 cards with 4 pagination buttons.
 - Static checks: `npm run typecheck`, `npm run lint`, `npm test` (8 tests), `npm run build`, and an isolated standalone release smoke all passed.
 - Standalone release smoke: build `GvGbCaBTvxoo10hKN-lKd`; health ok; all 11 available routes returned HTTP 200 with styles loaded and no horizontal overflow.
-- Formal release switch: pending explicit authorization because it will restart the localhost:3000 service and operate the formal service pointer; the formal database and current release remain unchanged.
-- Public GitHub push: pending explicit confirmation that the current project may be disclosed to the public repository.
+- Formal release switch: passed. The formal service now runs `runtime\releases\2026-09-08_223319` on localhost:3000 with health `ok`, build `GvGbCaBTvxoo10hKN-lKd`, verified service PIDs, and a unique port listener.
+- Public GitHub push: passed. The completed project commits are available on the authorized public `main` branch.
+- Formal post-switch counts: book_editions=1, owned_copies=1, shelf_locations=2, categories=0, tags=0, loans=0, annotations=0, research_works=0, research_folders=0; unchanged from the pre-upgrade baseline.
+- Formal safety evidence: upgrade-before backup created at `D:\方寸数据\backups\pre-upgrade\fangcun-pre-upgrade-2026-09-08T14-41-04-206Z.db`; previous release remains available for rollback.
