@@ -2,6 +2,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const bookEditions = sqliteTable("book_editions", {
   id: text("id").primaryKey(),
+  workId: text("work_id"),
   title: text("title").notNull(),
   authors: text("authors").notNull(),
   translators: text("translators"),
@@ -27,6 +28,15 @@ export const bookEditions = sqliteTable("book_editions", {
   source: text("source").notNull(),
   externalId: text("external_id"),
   userOverride: text("user_override").notNull().default("{}"),
+});
+
+export const works = sqliteTable("works", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  originalTitle: text("original_title"),
+  description: text("description"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });
 
 export const ownedCopies = sqliteTable("owned_copies", {

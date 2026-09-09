@@ -1,4 +1,4 @@
-import { db, ensureDatabase, sqlite } from "@/lib/db";
+import { bootstrapDatabase, db, sqlite } from "@/lib/db";
 import { sql } from "drizzle-orm";
 
 const migrationId = "0001_archive_fields";
@@ -8,7 +8,7 @@ const targets: Array<[string, string]> = [
   ["owned_copies", "acquisition_method"], ["owned_copies", "acquisition_source"], ["owned_copies", "acquisition_place"], ["owned_copies", "price_cents"], ["owned_copies", "currency"], ["owned_copies", "condition"], ["owned_copies", "inscription"], ["owned_copies", "receipt_note"], ["owned_copies", "shelf_location_id"], ["owned_copies", "shelf_slot"], ["owned_copies", "shelf_coordinate"], ["owned_copies", "location_sort_order"], ["shelf_locations", "sort_order"], ["shelf_locations", "active"],
 ];
 function hasColumn(table: string, name: string) { return (sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).some((column) => column.name === name); }
-ensureDatabase();
+bootstrapDatabase();
 const latestApplied = sqlite.prepare("SELECT id FROM schema_migrations WHERE id = ?").get(latestMigrationId);
 if (latestApplied) {
   sqlite.transaction(() => {

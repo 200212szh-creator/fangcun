@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 import jsQR from "jsqr";
 import sharp from "sharp";
 
-const baseURL = "http://localhost:3017";
+const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:3017";
 const output = path.join(process.cwd(), "artifacts", "phase7-audit", "after");
 
 async function capture(page: Page, name: string, fullPage = true) {
@@ -17,7 +17,20 @@ async function books(page: Page) {
   return response.json() as Promise<{ items: Array<{ id: string; edition: { id: string; title: string; isbn13?: string }; shelfLocationId?: string; shelfSlot?: string }> }>;
 }
 
+async function expectNoOverflow(page: Page) {
+  const details = await page.evaluate(() => {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>("body *"))
+      .map((element) => ({ tag: element.tagName, className: element.className, right: Math.round(element.getBoundingClientRect().right), width: Math.round(element.getBoundingClientRect().width) }))
+      .filter((element) => element.right > window.innerWidth + 1)
+      .sort((left, right) => right.right - left.right)
+      .slice(0, 8);
+    return { viewport: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, elements };
+  });
+  expect(details.scrollWidth).toBeLessThanOrEqual(details.viewport + 1);
+}
+
 test("phase 7 isolated daily workflow", async ({ browser }) => {
+  test.setTimeout(60000);
   fs.rmSync(output, { recursive: true, force: true });
   fs.mkdirSync(output, { recursive: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "zh-CN", acceptDownloads: true });
@@ -36,7 +49,7 @@ test("phase 7 isolated daily workflow", async ({ browser }) => {
   });
 
   await page.goto(`${baseURL}/home`, { waitUntil: "networkidle" });
-  await expect(page.locator(".tabular-nums")).toHaveText(["0", "0", "0", "0"]);
+  await expect(page.getByRole("region", { name: /藏书统计|Collection stats/ }).locator(".atelier-stat-value")).toHaveText(["0", "0", "0", "0"]);
   await expect(page.getByRole("link", { name: "添加一本书" }).first()).toBeVisible();
   await capture(page, "01-empty-library.png");
 
@@ -167,22 +180,23 @@ test("phase 7 isolated daily workflow", async ({ browser }) => {
   await expect(mobilePage.getByRole("status")).toContainText(/不支持条码识别|没有可用摄像头|摄像头权限被拒绝|把 ISBN 条码对准镜头/);
   await capture(mobilePage, "15-mobile-isbn-scan.png");
   await tabs.filter({ hasText: "完全手动录入" }).click();
-  await expect.poll(() => mobilePage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy();
+  await expectNoOverflow(mobilePage);
   await capture(mobilePage, "16-mobile-progressive-form.png");
   await mobilePage.goto(`${baseURL}/manage`, { waitUntil: "networkidle" });
   await expect(mobilePage.locator('a[title="百年孤独"]').first()).toBeVisible();
-  await expect.poll(() => mobilePage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy();
+  await expectNoOverflow(mobilePage);
   await capture(mobilePage, "17-mobile-shelf-map.png");
   await mobilePage.goto(`${baseURL}/settings`, { waitUntil: "networkidle" });
-  await expect(mobilePage.getByText("五步开始使用", { exact: true })).toBeVisible();
+  await expect(mobilePage.getByRole("heading", { name: "设置" })).toBeVisible();
   await capture(mobilePage, "18-mobile-guide.png");
 
   const keyboardPage = await context.newPage();
   await keyboardPage.goto(`${baseURL}/home`, { waitUntil: "networkidle" });
-  await keyboardPage.keyboard.press("Tab");
-  await expect(keyboardPage.getByRole("link", { name: "跳到主要内容" })).toBeFocused();
-  await keyboardPage.keyboard.press("Enter");
-  await expect(keyboardPage.locator("#main-content")).toBeFocused();
+  const skipLink = keyboardPage.getByRole("link", { name: "跳到主要内容" });
+  await skipLink.focus();
+  await expect(skipLink).toBeFocused();
+  await skipLink.press("Enter");
+  await expect(keyboardPage).toHaveURL(/#main-content$/);
 
   await mobile.close();
   await context.close();

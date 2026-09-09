@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 async function mockDiscovery(page: Page) {
   await page.route("**/api/discovery/books**", async (route) => {
@@ -25,11 +25,11 @@ test("entry page preserves the three-language brand and deep links stay direct",
   await expect(page.getByText("方寸之间，万卷有序", { exact: true })).toBeVisible();
   await expect(page.getByText("A world of books, perfectly in order.", { exact: true })).toBeVisible();
   await expect(page.getByText("Eine Welt voller Bücher, wohlgeordnet", { exact: true })).toBeVisible();
-  await page.getByLabel(/Enter directly next time/).check();
   await page.getByRole("button", { name: "Enter my library" }).click();
   await expect(page).toHaveURL(/\/home$/);
   await page.goto("/");
-  await expect(page).toHaveURL(/\/home$/);
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: "方寸之间，万卷有序" })).toBeVisible();
   await page.goto("/add");
   await expect(page).toHaveURL(/\/add$/);
 });
@@ -46,7 +46,7 @@ test("entry has no desktop or mobile horizontal overflow", async ({ page }) => {
 test("empty home uses database values and a concise heading", async ({ page }) => {
   await page.goto("/home");
   await expect(page.getByRole("heading", { name: /我的藏书|My books/ })).toBeVisible();
-  const stats = await page.locator(".tabular-nums").allTextContents();
+  const stats = await page.getByRole("region", { name: /藏书统计|Collection stats/ }).locator(".atelier-stat-value").allTextContents();
   expect(stats).toHaveLength(4);
   expect(stats.every((value) => /^\d+$/.test(value.trim()))).toBeTruthy();
   await expect(page.locator("header").getByRole("link", { name: /添加一本书|Add a book/ })).toHaveCount(0);
@@ -108,6 +108,7 @@ test("one edition can hold two copies and detail metadata survives refresh", asy
   expect(first.id).not.toBe(second.id);
   await page.goto(`/books/${first.id}`);
   await expect(page.getByRole("heading", { name: "版本与书目" })).toBeVisible();
+  await page.getByText("展开购藏与副本档案", { exact: true }).click();
   await page.getByLabel("价格（元）").fill("19.99");
   await page.getByLabel("品相").fill("近全新");
   await page.getByRole("button", { name: "保存档案" }).click();

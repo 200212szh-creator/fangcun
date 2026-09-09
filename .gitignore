@@ -8,7 +8,11 @@ data/*.db-wal
 playwright-report/
 test-results/
 *.log
-runtime/
+runtime/*
+!runtime/launcher/
+runtime/launcher/*
+!runtime/launcher/service-host.js
+!runtime/launcher/watchdog.ps1
 artifacts/
 tsconfig.tsbuildinfo
 *.bak

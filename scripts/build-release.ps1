@@ -12,6 +12,12 @@ $ReleaseRoot = Join-Path $ProjectRoot "runtime\releases"
 $ReleaseDir = Join-Path $ReleaseRoot $Version
 $BuildDir = Join-Path $ProjectRoot ".next"
 
+$sourceCommit = (& git -C $ProjectRoot rev-parse HEAD 2>$null | Select-Object -First 1).Trim()
+if ($sourceCommit -notmatch '^[0-9a-fA-F]{40}$') { throw "无法确定 source commit，拒绝创建无 provenance 的发行版本。" }
+$gitStatus = @(git -C $ProjectRoot status --porcelain --untracked-files=all 2>$null)
+$dirty = $gitStatus.Count -gt 0
+$buildTimestamp = [DateTime]::UtcNow.ToString("o")
+
 if (Test-Path -LiteralPath $ReleaseDir) { throw "发行目录已存在，拒绝覆盖：$ReleaseDir" }
 New-Item -ItemType Directory -Path $ReleaseRoot -Force | Out-Null
 if (-not $NoBuild) {
@@ -33,5 +39,6 @@ if (Test-Path -LiteralPath (Join-Path $ProjectRoot "public")) {
 }
 $buildId = if (Test-Path -LiteralPath (Join-Path $BuildDir "BUILD_ID")) { (Get-Content -LiteralPath (Join-Path $BuildDir "BUILD_ID") -Raw).Trim() } else { "unknown" }
 $buildId | Set-Content -LiteralPath (Join-Path $ReleaseDir "build-id.txt") -Encoding UTF8
-@{ version = $Version; buildId = $buildId; createdAt = [DateTime]::Now.ToString("o"); projectRoot = $ProjectRoot } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $ReleaseDir "release.json") -Encoding UTF8
+$releaseJson = @{ provenanceVersion = 1; release = $Version; version = $Version; buildId = $buildId; sourceCommit = $sourceCommit; dirty = $dirty; buildTimestamp = $buildTimestamp } | ConvertTo-Json
+[System.IO.File]::WriteAllText((Join-Path $ReleaseDir "release.json"), $releaseJson, [System.Text.UTF8Encoding]::new($false))
 Write-Output $ReleaseDir

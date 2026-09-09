@@ -1,4 +1,5 @@
-import { db, ensureDatabase, sqlite } from "@/lib/db";
+import { bootstrapDatabase, db, sqlite } from "@/lib/db";
+import { assertMigrationRecorded } from "@/lib/db/schema-truth";
 import { sql } from "drizzle-orm";
 
 type Column = { table: string; name: string; definition: string };
@@ -18,7 +19,8 @@ function hasColumn(table: string, name: string) {
   return (sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).some((column) => column.name === name);
 }
 
-ensureDatabase();
+bootstrapDatabase();
+if (sqlite.prepare("SELECT id FROM schema_migrations WHERE id = ?").get("0002_loans_annotations")) assertMigrationRecorded(sqlite, migrationId);
 db.run(sql`CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`);
 const applied = sqlite.prepare("SELECT id FROM schema_migrations WHERE id = ?").get(migrationId);
 if (applied) {

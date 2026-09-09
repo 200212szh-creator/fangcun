@@ -1,14 +1,20 @@
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const testDatabaseFile = path.join(process.cwd(), "data", "test-library.db");
+const tsxCli = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
 let dbModule: typeof import("@/lib/db");
 let repository: typeof import("@/lib/db/repository");
 
 beforeAll(async () => {
   for (const file of [testDatabaseFile, `${testDatabaseFile}-wal`, `${testDatabaseFile}-shm`]) fs.rmSync(file, { force: true });
   process.env.DATABASE_URL = testDatabaseFile;
+  const migrationEnv = { ...process.env, DATABASE_URL: testDatabaseFile };
+  delete migrationEnv.FANGCUN_DATA_DIR;
+  execFileSync(process.execPath, [tsxCli, path.join(process.cwd(), "scripts", "migrate.ts")], { cwd: process.cwd(), env: migrationEnv, stdio: "pipe" });
+  execFileSync(process.execPath, [tsxCli, path.join(process.cwd(), "scripts", "migrate-v2.ts")], { cwd: process.cwd(), env: migrationEnv, stdio: "pipe" });
   dbModule = await import("@/lib/db");
   repository = await import("@/lib/db/repository");
 });

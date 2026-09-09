@@ -1,8 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { createFixtureBook, expect, test } from "./fixtures";
 
-test("feedback refinements are visible and actionable", async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "zh-CN" });
-  const page = await context.newPage();
+test("feedback refinements are visible and actionable", async ({ page }) => {
+  await createFixtureBook(page, "feedback");
   await page.goto("/manage?focus=shelf", { waitUntil: "networkidle" });
   await expect(page.getByRole("tab")).toHaveCount(3);
   await expect(page.getByRole("tab", { name: /分类/ })).toBeVisible();
@@ -33,7 +32,6 @@ test("feedback refinements are visible and actionable", async ({ browser }) => {
   await page.getByRole("button", { name: "保存档案" }).click();
   await expect(page.getByText("档案已保存", { exact: true })).toBeVisible();
   await expect(page.getByText("保存成功，档案已同步", { exact: true })).toBeVisible();
-  await context.close();
 });
 
 

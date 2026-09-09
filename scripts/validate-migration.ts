@@ -1,15 +1,55 @@
-import { ensureDatabase, sqlite } from "@/lib/db";
+import Database from "better-sqlite3";
+import { assertRuntimeSchema, inspectSchema, REQUIRED_RUNTIME_TABLES } from "@/lib/db/schema-truth";
+import { runtimePaths } from "@/lib/runtime/paths";
 
-const required: Record<string, string[]> = {
-  book_editions: ["original_title", "series_name", "edition_statement", "edition_number", "print_run", "publication_date", "edition_notes", "original_publisher"],
-  owned_copies: ["acquisition_method", "acquisition_source", "acquisition_place", "price_cents", "currency", "condition", "inscription", "receipt_note", "shelf_location_id", "shelf_slot", "shelf_coordinate", "location_sort_order"],
-  shelf_locations: ["sort_order", "active"],
-};
-ensureDatabase();
-for (const [table, names] of Object.entries(required)) {
-  const actual = new Set((sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((column) => column.name));
-  const missing = names.filter((name) => !actual.has(name));
-  if (missing.length) throw new Error(`${table} missing: ${missing.join(", ")}`);
+function countTables(database: Database.Database) {
+  const existing = new Set((database.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>).map((row) => row.name));
+  return Object.fromEntries(REQUIRED_RUNTIME_TABLES.filter((table) => existing.has(table)).map((table) => [
+    table,
+    Number((database.prepare("SELECT COUNT(*) AS count FROM " + table).get() as { count: number }).count),
+  ]));
 }
-const counts = { editions: (sqlite.prepare("SELECT count(*) as count FROM book_editions").get() as { count: number }).count, copies: (sqlite.prepare("SELECT count(*) as count FROM owned_copies").get() as { count: number }).count, shelves: (sqlite.prepare("SELECT count(*) as count FROM shelf_locations").get() as { count: number }).count };
-console.log(JSON.stringify({ valid: true, counts }, null, 2));
+
+const databaseFile = process.env.FANGCUN_VALIDATION_DATABASE?.trim() || runtimePaths.databaseFile;
+let database: Database.Database | undefined;
+try {
+  database = new Database(databaseFile, { readonly: true, fileMustExist: true });
+  const schema = inspectSchema(database);
+  const integrity = String(database.pragma("integrity_check", { simple: true }));
+  const quickCheck = String(database.pragma("quick_check", { simple: true }));
+  const foreignKeyViolations = database.prepare("PRAGMA foreign_key_check").all().length;
+  assertRuntimeSchema(database);
+  if (integrity !== "ok" || quickCheck !== "ok" || foreignKeyViolations !== 0) {
+    throw new Error("database integrity failed: integrity_check=" + integrity + "; quick_check=" + quickCheck + "; foreign_key_violations=" + foreignKeyViolations);
+  }
+  const counts = countTables(database);
+  console.log(JSON.stringify({
+    valid: true,
+    databaseTarget: process.env.FANGCUN_VALIDATION_TARGET || "UNSPECIFIED_READ_ONLY",
+    databaseFile,
+    counts: {
+      editions: counts.book_editions ?? 0,
+      copies: counts.owned_copies ?? 0,
+      shelves: counts.shelf_locations ?? 0,
+    },
+    schema: {
+      currentMigrationId: schema.currentMigrationId,
+      migrations: schema.migrations,
+      workSchemaState: schema.workSchemaState,
+    },
+    integrity,
+    quickCheck,
+    foreignKeyViolations,
+    formalDatabaseMutation: false,
+  }, null, 2));
+} catch (error: unknown) {
+  console.error(JSON.stringify({
+    valid: false,
+    databaseFile,
+    error: error instanceof Error ? error.message : String(error),
+    formalDatabaseMutation: false,
+  }, null, 2));
+  process.exitCode = 1;
+} finally {
+  database?.close();
+}

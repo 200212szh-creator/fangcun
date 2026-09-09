@@ -1,9 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { createFixtureBook, expect, test } from "./fixtures";
 
 test.describe("motion system", () => {
   test("desktop content, disclosure, save feedback, and screenshots", async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 1440, height: 778 }, locale: "zh-CN" });
     const page = await context.newPage();
+    await createFixtureBook(page, "motion");
     await page.goto("/home", { waitUntil: "domcontentloaded" });
     await expect(page.locator("#main-content > div")).toHaveClass(/motion-page-in/);
     await expect(page.locator("body")).toHaveCSS("overflow-x", "visible");
@@ -107,12 +108,12 @@ test.describe("motion system", () => {
       await new Promise((resolve) => setTimeout(resolve, 450));
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [{ kind: "paper", id: "motion-paper", title: "动效测试结果", authors: ["测试作者"], source: "motion-fixture", abstract: "用于验证检索状态替换。" }] }) });
     });
-    await page.goto("/search", { waitUntil: "domcontentloaded" });
-    await page.getByLabel(/搜索书名/).fill("设计");
-    await page.getByRole("button", { name: "搜索", exact: true }).click();
-    await page.waitForTimeout(150);
+    const searchRequest = page.waitForRequest((request) => new URL(request.url()).pathname.endsWith("/api/discovery/search"));
+    await page.goto("/search?q=设计", { waitUntil: "domcontentloaded" });
+    await searchRequest;
+    await page.waitForTimeout(100);
     await expect(page.getByRole("status", { name: "正在检索" })).toHaveCount(0);
-    await page.waitForTimeout(220);
+    await page.waitForTimeout(250);
     await expect(page.getByRole("status", { name: "正在检索" })).toBeVisible();
     await expect(page.getByText("动效测试结果", { exact: true })).toBeVisible({ timeout: 2000 });
     await context.close();

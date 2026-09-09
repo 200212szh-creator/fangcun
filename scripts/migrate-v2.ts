@@ -1,8 +1,10 @@
-import { db, ensureDatabase, sqlite } from "@/lib/db";
+import { bootstrapDatabase, db, sqlite } from "@/lib/db";
+import { assertMigrationRecorded } from "@/lib/db/schema-truth";
 import { sql } from "drizzle-orm";
 
 const migrationId = "0002_loans_annotations";
-ensureDatabase();
+bootstrapDatabase();
+assertMigrationRecorded(sqlite, "0001_archive_fields");
 db.run(sql`CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`);
 if (sqlite.prepare("SELECT id FROM schema_migrations WHERE id = ?").get(migrationId)) { console.log(`${migrationId} already applied.`); process.exit(0); }
 sqlite.transaction(() => {
