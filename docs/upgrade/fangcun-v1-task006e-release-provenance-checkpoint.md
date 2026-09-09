@@ -71,7 +71,7 @@ When running under the formal release launcher, incomplete provenance makes heal
 
 ## 7. Release Activation Guard
 
-The watchdog now requires the current-release pointer, refuses empty or invalid pointers, validates the pointed release provenance, and no longer falls back to the newest old release. The service host receives the pointer path and fails closed if the pointer, release directory, release metadata, or build ID do not agree. The promotion script applies the same metadata checks before changing either release pointer.
+The watchdog now requires the current-release pointer, refuses empty or invalid pointers, validates the pointed release provenance, and no longer falls back to the newest old release. The service host receives the pointer path and fails closed if the pointer, release directory, release metadata, or build ID do not agree. The promotion script applies the same metadata checks before changing either release pointer. Automatic restart now sends SIGTERM to the verified service host, waits up to 15 seconds, and refuses to start a second instance if graceful shutdown fails; there is no force-kill fallback.
 
 ## 8. Tests
 
@@ -103,14 +103,27 @@ The reviewed categories were:
 
 `git diff --check` passed. No formal DB, backup, secret, temporary fixture, or unintended runtime output is part of the intended checkpoint. The generated design screenshot was deliberately left out.
 
+Final runtime activation evidence:
+
+- Active release: `2026-09-09_Task006E_a2652ac`
+- Build ID: `teweJy18MQCE5HQL6O2i_`
+- Source commit: `a2652ac4bbf8c42c74f68e21aac0164b9d41dfa2`
+- Build timestamp: `2026-09-09T10:56:22.0735558Z`
+- Health: `status=ok`, `database=ok`, `provenanceStatus=ok`, `schemaMigrationState=ready`
+- Endpoint: `127.0.0.1:3000`
+- Verified writer chain: host PID `7892` -> server PID `29612`; writer count `2`
+- Scheduled task: `Running`
+- The preceding release was stopped with verified SIGTERM before promotion; no force kill was used.
+
 ## 11. Commit
 
 - Checkpoint commit: `4fc3699aaf804c80375ecd095911936afd669e9c`
+- Launcher hardening commit: `a2652ac4bbf8c42c74f68e21aac0164b9d41dfa2`
 - Message: `fangcun v1: establish verified Work model baseline`
 
 ## 12. Push
 
-- Push: authorized final push to `origin/main` after this report is finalized
+- Push: final normal push to `origin/main` after this report update
 - Destination: confirmed `origin` Fangcun remote on `main`
 - Force push / history rewrite / PR / merge: not allowed and not used
 
@@ -136,7 +149,7 @@ Read-only validation target: `D:\方寸数据\data\library.db`
 - quick check: `ok`
 - foreign-key violations: 0
 - formal database mutation during Task 006E: NO
-- promotion backup: `D:\方寸数据\backups\pre-upgrade\fangcun-pre-upgrade-2026-09-09T10-44-55-207Z.db`
+- promotion backup: `D:\方寸数据\backups\pre-upgrade\fangcun-pre-upgrade-2026-09-09T10-57-34-004Z.db`
 - promotion backup SHA-256: `8dcd0a1f0dd9b9145605a420333e1be72c66a16a9a6d17648251dff665f0d10a`
 - current formal database file remained online-locked by the active service during final audit; its logical/schema state matched the promotion backup and no migration or business write was run by Task 006E.
 
