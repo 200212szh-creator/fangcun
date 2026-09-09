@@ -1,6 +1,7 @@
 import { ensureDatabase, sqlite } from "@/lib/db";
 import { uid } from "@/lib/utils";
 import type { BookEdition, OwnedCopy, Work } from "@/lib/types";
+import { assertCopyLocation } from "@/lib/db/location-repository";
 
 export type CatalogSchemaMode = "legacy" | "work";
 
@@ -185,6 +186,7 @@ export function createCatalogOwnedCopy(input: CatalogOwnedCopyInput) {
   const mode = getCatalogSchemaMode();
   const write = sqlite.transaction(() => {
     const edition = ensureEditionInTransaction(mode, input.edition);
+    assertCopyLocation(input.shelfLocationId);
     const duplicate = input.edition.isbn13
       ? sqlite.prepare("SELECT c.id FROM owned_copies c JOIN book_editions e ON e.id=c.edition_id WHERE e.isbn13=? AND c.user_id=? AND c.deleted_at IS NULL LIMIT 1").get(input.edition.isbn13, "local-owner") as { id: string } | undefined
       : undefined;

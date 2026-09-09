@@ -23,7 +23,7 @@ test("Task 006 isolated Work-Edition-Copy write smoke owns and removes its fixtu
   const marker = `task006-${crypto.randomUUID()}`;
   const baseline = await state(page);
   expect(baseline.databaseTarget).toBe("ISOLATED");
-  expect(baseline.migrations).toEqual(["0001_archive_fields", "0002_loans_annotations", "0003_works"]);
+  expect(baseline.migrations).toEqual(["0001_archive_fields", "0002_loans_annotations", "0003_works", "0004_location_model"]);
   expect(baseline.counts).toEqual({ works: 0, editions: 0, copies: 0, activeCopies: 0, shelves: 0, loans: 0, annotations: 0 });
 
   const atomicFailure = await page.request.post("/api/catalog/books/from-edition", { data: { edition: { id: `${marker}-atomic-edition`, title: `${marker} atomic rollback`, source: "task006-write-smoke" } } });

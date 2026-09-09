@@ -64,7 +64,7 @@ test("Task 004 isolated runtime smoke covers the core catalog flow", async ({ pa
   const healthResponse = await page.request.get("/api/health");
   expect(healthResponse.status()).toBe(200);
   const health = await healthResponse.json() as { status: string; database: string; migrations: string[]; schemaMigrationState: string; release: string; buildId: string; sourceCommit: string; dirty: boolean; buildTimestamp: string };
-  expect(health).toMatchObject({ status: "ok", database: "ok", migrations: ["0001_archive_fields", "0002_loans_annotations", "0003_works"], schemaMigrationState: "ready" });
+  expect(health).toMatchObject({ status: "ok", database: "ok", migrations: ["0001_archive_fields", "0002_loans_annotations", "0003_works", "0004_location_model"], schemaMigrationState: "ready" });
   expect(health.release).toBeTruthy();
   expect(health.buildId).toBeTruthy();
   expect(health.sourceCommit).toBeTruthy();

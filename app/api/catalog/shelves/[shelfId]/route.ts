@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { deleteShelf, updateShelf } from "@/lib/db/repository";
+import { LocationDomainError } from "@/lib/db/location-repository";
 
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ shelfId: string }> };
@@ -9,8 +10,13 @@ export async function PATCH(request: Request, { params }: Context) {
   const body = await request.json() as { name?: string; parentId?: string | null; room?: string; sortOrder?: number; active?: boolean };
   if (body.name !== undefined && !body.name.trim()) return NextResponse.json({ error: "NAME_REQUIRED" }, { status: 400 });
   if (body.sortOrder !== undefined && (!Number.isInteger(body.sortOrder) || body.sortOrder < 0 || body.sortOrder > 100000)) return NextResponse.json({ error: "INVALID_SORT_ORDER" }, { status: 400 });
-  const item = updateShelf(shelfId, { ...body, name: body.name?.trim() });
-  return item ? NextResponse.json(item) : NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  try {
+    const item = updateShelf(shelfId, { ...body, name: body.name?.trim() });
+    return item ? NextResponse.json(item) : NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  } catch (error: unknown) {
+    if (error instanceof LocationDomainError) return NextResponse.json({ error: error.code, message: error.message }, { status: error.code === "LOCATION_NOT_FOUND" || error.code === "PARENT_NOT_FOUND" ? 404 : error.code === "LOCATION_IN_USE" || error.code === "LOCATION_CODE_CONFLICT" ? 409 : 400 });
+    return NextResponse.json({ error: "SHELF_WRITE_FAILED" }, { status: 400 });
+  }
 }
 
 export async function DELETE(_request: Request, { params }: Context) {

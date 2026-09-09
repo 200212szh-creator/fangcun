@@ -138,6 +138,14 @@ function sha256(file: string) {
   return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
 
+function canonicalMigrationSql(file: string) {
+  return fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+function sha256Text(value: string) {
+  return crypto.createHash("sha256").update(value, "utf8").digest("hex");
+}
+
 function hasTable(database: Database.Database, table: string) {
   return Boolean(database.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table));
 }
@@ -296,10 +304,11 @@ function restoreRehearsal(backup: string, baseline: Baseline) {
 
 function readMigrationSql(sqlHashArgument: string | undefined) {
   if (!fs.existsSync(migrationSqlFile)) throw new RunnerRefusal(`verified migration SQL is missing: ${migrationSqlFile}`);
-  const actualHash = sha256(migrationSqlFile);
+  const sql = canonicalMigrationSql(migrationSqlFile);
+  const actualHash = sha256Text(sql);
   if (actualHash !== verifiedMigrationSqlSha256) throw new RunnerRefusal(`SQL hash gate failed: checked-in SQL is ${actualHash}, verified Task 002 SQL is ${verifiedMigrationSqlSha256}`);
   if (sqlHashArgument && sqlHashArgument !== actualHash) throw new RunnerRefusal(`SQL hash gate failed: supplied SQL hash is ${sqlHashArgument}, actual is ${actualHash}`);
-  return { sql: fs.readFileSync(migrationSqlFile, "utf8"), sha256: actualHash };
+  return { sql, sha256: actualHash };
 }
 
 async function preflight(args: RunnerArgs, sqlSha256: string) {

@@ -1,4 +1,4 @@
-import type { AcquisitionMethod, BookEdition, OwnedCopy, ReadingStatus, Work } from "@/lib/types";
+import type { AcquisitionMethod, BookEdition, LocationDto, OwnedCopy, ReadingStatus, Work } from "@/lib/types";
 
 /**
  * Stable domain-facing Work shape. Database column names and migration-only
@@ -13,6 +13,7 @@ export type WorkDto = Pick<Work, "id" | "title" | "originalTitle" | "description
 export type EditionDto = BookEdition;
 
 export type CopyDto = Omit<OwnedCopy, "edition" | "work">;
+export type LocationServiceDto = LocationDto;
 
 export type CatalogBookServiceDto = {
   work?: WorkDto;

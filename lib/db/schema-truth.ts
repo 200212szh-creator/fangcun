@@ -2,7 +2,12 @@ import type Database from "better-sqlite3";
 
 export const LEGACY_MIGRATION_IDS = ["0001_archive_fields", "0002_loans_annotations"] as const;
 export const WORK_MIGRATION_ID = "0003_works";
-export const KNOWN_MIGRATION_IDS = [...LEGACY_MIGRATION_IDS, WORK_MIGRATION_ID] as const;
+export const LOCATION_MIGRATION_ID = "0004_location_model";
+export const KNOWN_MIGRATION_IDS = [...LEGACY_MIGRATION_IDS, WORK_MIGRATION_ID, LOCATION_MIGRATION_ID] as const;
+export const LOCATION_MODEL_COLUMNS: Record<string, string[]> = {
+  shelf_locations: ["location_type", "display_code"],
+  loans: ["original_location_id", "original_location_slot", "original_location_coordinate", "original_location_text", "original_location_sort_order", "original_location_captured"],
+};
 
 export const REQUIRED_RUNTIME_TABLES = [
   "schema_migrations", "book_editions", "owned_copies", "categories", "tags", "copy_tags",
@@ -34,7 +39,7 @@ export const REQUIRED_WORK_COLUMNS = ["id", "title", "original_title", "descript
 
 export class SchemaTruthError extends Error {
   constructor(
-    public readonly code: "SCHEMA_MIGRATION_REQUIRED" | "UNKNOWN_MIGRATION" | "INCOMPLETE_WORK_SCHEMA",
+    public readonly code: "SCHEMA_MIGRATION_REQUIRED" | "UNKNOWN_MIGRATION" | "INCOMPLETE_WORK_SCHEMA" | "INCOMPLETE_LOCATION_SCHEMA",
     message: string,
   ) {
     super(message);
@@ -57,6 +62,9 @@ export type SchemaInspection = {
   workMigrationRecorded: boolean;
   missingWorkColumns: string[];
   workSchemaState: "absent" | "ready" | "partial" | "present-unrecorded" | "recorded-without-schema";
+  locationMigrationRecorded: boolean;
+  missingLocationColumns: Record<string, string[]>;
+  locationSchemaState: "absent" | "ready" | "partial" | "present-unrecorded" | "recorded-without-schema";
 };
 
 export function hasTable(database: Database.Database, tableName: string) {
@@ -104,6 +112,24 @@ export function inspectSchema(database: Database.Database): SchemaInspection {
   } else if (hasWorkTable && hasWorkIdColumn) {
     workSchemaState = "ready";
   }
+  const missingLocationColumns = Object.fromEntries(
+    Object.entries(LOCATION_MODEL_COLUMNS)
+      .map(([table, columns]) => [table, columns.filter((column) => !hasColumn(database, table, column))])
+      .filter(([, missing]) => missing.length > 0),
+  );
+  const locationMigrationRecorded = migrationIds.has(LOCATION_MIGRATION_ID);
+  const locationColumnCount = Object.values(LOCATION_MODEL_COLUMNS).flat().length;
+  const locationPresentCount = locationColumnCount - Object.values(missingLocationColumns).flat().length;
+  let locationSchemaState: SchemaInspection["locationSchemaState"] = "absent";
+  if (locationPresentCount > 0 && locationPresentCount < locationColumnCount) {
+    locationSchemaState = "partial";
+  } else if (locationPresentCount === locationColumnCount && !locationMigrationRecorded) {
+    locationSchemaState = "present-unrecorded";
+  } else if (locationPresentCount === 0 && locationMigrationRecorded) {
+    locationSchemaState = "recorded-without-schema";
+  } else if (locationPresentCount === locationColumnCount) {
+    locationSchemaState = "ready";
+  }
 
   return {
     tables,
@@ -118,6 +144,9 @@ export function inspectSchema(database: Database.Database): SchemaInspection {
     workMigrationRecorded,
     missingWorkColumns,
     workSchemaState,
+    locationMigrationRecorded,
+    missingLocationColumns,
+    locationSchemaState,
   };
 }
 
@@ -134,6 +163,9 @@ export function assertRuntimeSchema(database: Database.Database) {
   }
   if (inspection.workSchemaState === "partial" || inspection.workSchemaState === "present-unrecorded" || inspection.workSchemaState === "recorded-without-schema") {
     throw new SchemaTruthError("INCOMPLETE_WORK_SCHEMA", "Work schema state is " + inspection.workSchemaState);
+  }
+  if (inspection.locationSchemaState === "partial" || inspection.locationSchemaState === "present-unrecorded" || inspection.locationSchemaState === "recorded-without-schema") {
+    throw new SchemaTruthError("INCOMPLETE_LOCATION_SCHEMA", "Location schema state is " + inspection.locationSchemaState);
   }
   return inspection;
 }
