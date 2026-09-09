@@ -87,13 +87,27 @@ function Get-Health {
 function Stop-VerifiedService {
   $state = Get-VerifiedState
   if (-not $state) { return $false }
-  foreach ($processId in @([int]$state.serverPid, [int]$state.hostPid)) {
-    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
-    if ($process) { Stop-Process -Id $processId -Force }
+  $hostPid = [int]$state.hostPid
+  $serverPid = [int]$state.serverPid
+  try {
+    & $NodePath -e "process.kill($hostPid, 'SIGTERM')"
+    if ($LASTEXITCODE -ne 0) { Write-Log "graceful-stop-signal-failed hostPid=$hostPid"; return $false }
+  } catch {
+    Write-Log "graceful-stop-signal-error hostPid=$hostPid reason=$($_.Exception.Message)"
+    return $false
   }
-  Start-Sleep -Milliseconds 500
+  $deadline = [DateTime]::UtcNow.AddSeconds(15)
+  do {
+    Start-Sleep -Milliseconds 500
+    $hostAlive = [bool](Get-CimInstance Win32_Process -Filter "Handle='$hostPid'" -ErrorAction SilentlyContinue)
+    $serverAlive = [bool](Get-CimInstance Win32_Process -Filter "Handle='$serverPid'" -ErrorAction SilentlyContinue)
+  } while (($hostAlive -or $serverAlive) -and [DateTime]::UtcNow -lt $deadline)
+  if ($hostAlive -or $serverAlive) {
+    Write-Log "graceful-stop-timeout hostPid=$hostPid serverPid=$serverPid"
+    return $false
+  }
   if (Test-Path -LiteralPath $ServiceState) { Remove-Item -LiteralPath $ServiceState -Force -ErrorAction SilentlyContinue }
-  Write-Log "verified-service-stopped hostPid=$($state.hostPid) serverPid=$($state.serverPid)"
+  Write-Log "verified-service-stopped-gracefully hostPid=$hostPid serverPid=$serverPid"
   return $true
 }
 
@@ -176,7 +190,7 @@ try {
         $delay = $backoff[[Math]::Min($restartTimes.Count, $backoff.Count - 1)]
         Write-Log "health-failed count=$failures restarting-after=${delay}s reason=$($health.reason)"
         Start-Sleep -Seconds $delay
-        Stop-VerifiedService | Out-Null
+        if (-not (Stop-VerifiedService)) { throw "Fangcun 服务未能优雅停止，拒绝启动第二个实例。" }
         Start-VerifiedService | Out-Null
         $restartTimes.Add([DateTime]::Now)
         $failures = 0
