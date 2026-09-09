@@ -258,6 +258,9 @@ function backupCount(sidecarCounts: Record<string, unknown> | null, key: keyof t
   if (!sidecarCounts) return false;
   const tableName = countTables[key];
   const value = sidecarCounts[tableName];
+  if (key === "works" && sidecarCounts.works === undefined) {
+    return true;
+  }
   if (key === "activeCopies") {
     return Number(value) === baseline[key] || Number(sidecarCounts.activeCopies) === baseline[key];
   }
