@@ -78,7 +78,7 @@ The watchdog now requires the current-release pointer, refuses empty or invalid 
 - Provenance integration tests: 2 passed
 - Existing Vitest suite: passed; the pre-existing migration suite retained its one intentional skipped case
 - Manual release-builder verification: generated release metadata contained a 40-character source commit and `dirty=true` while the working tree was uncommitted
-- E2E: 32/32 passed, 16 Chromium and 16 mobile
+- E2E: final full run 32/32 passed, 16 Chromium and 16 mobile. One earlier full run had a single transient Chromium reduced-motion timing failure; the targeted retry passed 1/1 and the subsequent complete run passed 32/32.
 - E2E server used an isolated temporary database and port 3017; formal database was not used by E2E
 
 ## 9. Quality
@@ -105,18 +105,18 @@ The reviewed categories were:
 
 ## 11. Commit
 
-- Commit: pending final checkpoint creation
+- Checkpoint commit: `4fc3699aaf804c80375ecd095911936afd669e9c`
 - Message: `fangcun v1: establish verified Work model baseline`
 
 ## 12. Push
 
-- Push: pending checkpoint commit verification
+- Push: authorized final push to `origin/main` after this report is finalized
 - Destination: confirmed `origin` Fangcun remote on `main`
 - Force push / history rewrite / PR / merge: not allowed and not used
 
 ## 13. Remote Verification
 
-Pending until the local checkpoint commit is created and pushed. Verification will compare local `HEAD` with `origin/main`.
+Post-push verification compares local `HEAD` with `origin/main`; the final completion record reports the matching result.
 
 ## 14. Formal DB Verification
 
@@ -136,6 +136,9 @@ Read-only validation target: `D:\方寸数据\data\library.db`
 - quick check: `ok`
 - foreign-key violations: 0
 - formal database mutation during Task 006E: NO
+- promotion backup: `D:\方寸数据\backups\pre-upgrade\fangcun-pre-upgrade-2026-09-09T10-44-55-207Z.db`
+- promotion backup SHA-256: `8dcd0a1f0dd9b9145605a420333e1be72c66a16a9a6d17648251dff665f0d10a`
+- current formal database file remained online-locked by the active service during final audit; its logical/schema state matched the promotion backup and no migration or business write was run by Task 006E.
 
 The `0003_works` state was already part of the Task 006D restored baseline. Task 006E executed no formal migration, write-smoke, or fixture.
 
