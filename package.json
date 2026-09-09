@@ -18,6 +18,7 @@
     "db:migrate": "tsx scripts/migrate.ts && tsx scripts/migrate-v2.ts",
     "db:migrate:isolated": "tsx scripts/migrate.ts && tsx scripts/migrate-v2.ts && tsx scripts/migrate-v3.ts && tsx scripts/migrate-v4.ts",
     "db:migrate:production": "tsx scripts/migrate-v3-production.ts",
+    "db:migrate:location:production": "tsx scripts/migrate-v4-production.ts",
     "db:migrate:rollback": "tsx scripts/rollback-migration.ts",
     "db:validate": "tsx scripts/validate-migration.ts",
     "db:preflight": "tsx scripts/migration-preflight.ts",
