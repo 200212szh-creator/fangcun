@@ -139,14 +139,94 @@ Final read-only inspection of `D:\\方寸数据\\data\\library.db` showed:
 
 The hash was computed during a verified stopped-service window and matched the pre-switch hash. No formal schema or business-data write occurred. The standard release-activation backup check was allowed by the existing promotion mechanism; no Phase B `EXECUTE` or Phase B migration backup preparation was performed.
 
-## 11. Phase B Readiness
+## 11. Phase B Execution
 
 Phase A status: **COMPLETE**.
 
-Ready for a separate controlled Phase B window only after the explicit approval message:
+Phase B was explicitly approved with:
 
 ```text
 GO — EXECUTE TASK 007B PHASE B
 ```
 
-Until that approval, do not run `scripts/migrate-v4-production.ts` in formal EXECUTE mode, do not execute `0004_location_model`, and do not create or mutate formal Location schema/data.
+The formal maintenance window used the project service-host graceful shutdown
+path. Only the two Fangcun watchdog tasks were temporarily disabled. The
+verified host/server chain exited through SIGTERM; no force termination was
+used, and no unrelated process, service or port owner was stopped.
+
+Fresh pre-upgrade backup:
+
+    D:\\方寸数据\\backups\\pre-upgrade\\fangcun-pre-upgrade-2026-09-10T02-37-04-884Z.db
+
+- backup SHA-256: `8dcd0a1f0dd9b9145605a420333e1be72c66a16a9a6d17648251dff665f0d10a`
+- backup sidecar integrity: `ok`
+- backup restore rehearsal: PASS
+- backup state: pre-0004, history 0001/0002/0003
+- backup baseline: Works 2, Editions 2, Copies 2, Locations 2, Loans 0,
+  Annotations 0
+
+The formal PRECHECK and DRY-RUN both returned **GO**. The production runner
+then executed exactly one `0004_location_model` transaction using the approved
+token `EXECUTE_0004_LOCATION_MODEL` at `2026-09-10T02:39:15.379Z`.
+
+Expected and applied changes:
+
+- two additive columns on `shelf_locations`
+- six additive original-location columns on `loans`
+- three Location/loan indexes
+- one `0004_location_model` row in `schema_migrations`
+
+Post-migration validation passed before the transaction was committed:
+
+- history: `0001_archive_fields`, `0002_loans_annotations`, `0003_works`,
+  `0004_location_model`
+- current migration: `0004_location_model`
+- Works: 2
+- Editions: 2
+- Copies: 2
+- Active Copies: 2
+- Locations: 2
+- Loans: 0
+- Annotations: 0
+- all 0004 columns and indexes present
+- legacy location rows unchanged
+- owned-copy location rows unchanged
+- edition rows unchanged
+- new Location defaults remain empty/legacy; no Loan original-location
+  snapshots were created
+- `integrity_check=ok`, `quick_check=ok`, `foreign_key_check=0`
+
+The formal database was touched for the approved additive schema migration only.
+No business data was added, deleted or rewritten. The post-migration formal
+database SHA-256 is:
+
+    282d5b79c4546fd1143a2c9ee080a8192c7fb1b660b3fd25efe8afb8e949e243
+
+## 12. Post-Migration Runtime Verification
+
+The final runtime remains the clean, provenance-bound release:
+
+- release: `2026-09-10_Task007B_location_main_final`
+- build ID: `XQnxmsVXfcEh9XpgfBIxt`
+- source commit: `588630435cd49b30b57a638ce0276e735a1a6730`
+- dirty: `false`
+- health: `ok`
+- database: `ok`
+- provenance: `ok`
+- current migration: `0004_location_model`
+- both release pointers resolve to the final release
+- exactly one listener on `127.0.0.1:3000`
+- exactly one Fangcun writer chain: service host → final release server
+- Fangcun Archive Service: enabled/running
+- Fangcun Archive Health Recovery: enabled/ready
+
+Read-only compatibility smoke passed with HTTP 200 for home, collection,
+search, manage, research, add, settings and book detail pages, plus health,
+books, locations, metadata, book detail and copy-loans APIs. The authoritative
+read results were 2 books, 2 locations and 0 loans.
+
+The full isolated E2E suite completed with 32 tests passing under one allowed
+test retry; one mobile reduced-motion test was flaky on its first attempt and
+passed on retry. The suite's NOT NULL log is the expected negative-path test.
+
+Task 007B — Phase B: **COMPLETE**.
