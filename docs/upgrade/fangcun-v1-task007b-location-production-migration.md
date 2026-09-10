@@ -206,9 +206,9 @@ database SHA-256 is:
 
 The final runtime remains the clean, provenance-bound release:
 
-- release: `2026-09-10_Task007B_location_main_final`
-- build ID: `XQnxmsVXfcEh9XpgfBIxt`
-- source commit: `588630435cd49b30b57a638ce0276e735a1a6730`
+- release: `2026-09-10_Task007B_location_main_phaseB_final`
+- build ID: `MIYAX2NVj1sHK-EAty8kT`
+- source commit: `e9c889d44921464cc6e5bce9139d8b8e235e9e5f`
 - dirty: `false`
 - health: `ok`
 - database: `ok`
