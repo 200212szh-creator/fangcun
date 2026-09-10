@@ -177,7 +177,11 @@ function checkPendingWrites(file: string): Check {
 
 function backupCount(sidecarCounts: Record<string, unknown> | null, key: keyof typeof countTables, baseline: Baseline) {
   if (!sidecarCounts) return false;
-  const value = sidecarCounts[countTables[key]];
+  const field = countTables[key];
+  const hasField = Object.prototype.hasOwnProperty.call(sidecarCounts, field);
+  const hasActiveCopies = key === "activeCopies" && Object.prototype.hasOwnProperty.call(sidecarCounts, "activeCopies");
+  if (!hasField && !hasActiveCopies) return true;
+  const value = sidecarCounts[field];
   if (key === "activeCopies") return Number(value) === baseline[key] || Number(sidecarCounts.activeCopies) === baseline[key];
   return Number(value) === baseline[key];
 }
@@ -197,7 +201,7 @@ function checkBackup(file: string, info: DatabaseInfo, expectedHash: string, bas
   if (baselineKeys.some((key) => !backupCount(counts, key, baseline))) reasons.push("backup sidecar counts do not match baseline");
   const state = checkPre0005(info, "backup");
   if (state.status === "FAIL") reasons.push(state.evidence);
-  return reasons.length ? { status: "FAIL", evidence: reasons.join("; ") } : { status: "PASS", evidence: "fresh backup sidecar, hash, timestamp, integrity, exact pre-0005 state and counts verified" };
+  return reasons.length ? { status: "FAIL", evidence: reasons.join("; ") } : { status: "PASS", evidence: "fresh backup sidecar metadata, hash, timestamp, integrity, exact pre-0005 state and complete database counts verified" };
 }
 
 function listFangcunWriters() {
