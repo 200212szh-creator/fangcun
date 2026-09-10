@@ -30,6 +30,24 @@ export const bookEditions = sqliteTable("book_editions", {
   userOverride: text("user_override").notNull().default("{}"),
 });
 
+export const contributors = sqliteTable("contributors", {
+  id: text("id").primaryKey(),
+  displayName: text("display_name").notNull(),
+  sortName: text("sort_name"),
+  normalizedName: text("normalized_name"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const editionContributors = sqliteTable("edition_contributors", {
+  editionId: text("edition_id").notNull(),
+  contributorId: text("contributor_id").notNull(),
+  role: text("role").notNull(),
+  orderIndex: integer("order_index").notNull(),
+  creditedAs: text("credited_as"),
+});
+
 export const works = sqliteTable("works", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),

@@ -1,8 +1,20 @@
 import { z } from "zod";
 
+export const contributorInputSchema = z.object({
+  id: z.string().trim().min(1).max(100).optional(),
+  displayName: z.string().trim().min(1).max(240),
+  sortName: z.string().trim().max(240).optional(),
+  normalizedName: z.string().trim().max(240).optional(),
+  role: z.enum(["author", "translator", "editor", "compiler", "illustrator", "other"]),
+  orderIndex: z.number().int().min(0).max(100000).optional(),
+  creditedAs: z.string().trim().max(240).optional(),
+});
+
 export const bookInputSchema = z.object({
   title: z.string().trim().min(1),
-  authors: z.string().trim().min(1),
+  authors: z.string().trim().default(""),
+  translators: z.string().trim().optional(),
+  contributors: z.array(contributorInputSchema).max(80).optional(),
   publisher: z.string().optional(),
   publicationYear: z.coerce.number().int().min(0).max(3000).optional().or(z.literal("")),
   publicationDate: z.string().trim().regex(/^\d{4}(?:-\d{2})?(?:-\d{2})?$/, "Use YYYY, YYYY-MM, or YYYY-MM-DD").optional().or(z.literal("")),
@@ -36,6 +48,10 @@ export const bookInputSchema = z.object({
   condition: z.string().trim().max(120).optional(),
   inscription: z.string().trim().max(1000).optional(),
   receiptNote: z.string().trim().max(2000).optional(),
+}).superRefine((value, context) => {
+  if (!value.authors && !value.contributors?.some((item) => item.role === "author")) {
+    context.addIssue({ code: "custom", path: ["authors"], message: "Provide legacy authors or at least one author contributor" });
+  }
 });
 
 export const paperInputSchema = z.object({
@@ -53,6 +69,7 @@ export const editionUpdateSchema = z.object({
   title: z.string().trim().min(1).max(240).optional(),
   authors: z.array(z.string().trim().min(1)).max(40).optional(),
   translators: z.array(z.string().trim().min(1)).max(40).optional(),
+  contributors: z.array(contributorInputSchema).max(80).optional(),
   publisher: z.string().trim().max(240).nullable().optional(),
   publicationYear: z.number().int().min(0).max(3000).nullable().optional(),
   publicationDate: z.string().trim().regex(/^\d{4}(?:-\d{2})?(?:-\d{2})?$/).nullable().optional(),

@@ -3,10 +3,15 @@ import type Database from "better-sqlite3";
 export const LEGACY_MIGRATION_IDS = ["0001_archive_fields", "0002_loans_annotations"] as const;
 export const WORK_MIGRATION_ID = "0003_works";
 export const LOCATION_MIGRATION_ID = "0004_location_model";
-export const KNOWN_MIGRATION_IDS = [...LEGACY_MIGRATION_IDS, WORK_MIGRATION_ID, LOCATION_MIGRATION_ID] as const;
+export const CONTRIBUTOR_MIGRATION_ID = "0005_contributors";
+export const KNOWN_MIGRATION_IDS = [...LEGACY_MIGRATION_IDS, WORK_MIGRATION_ID, LOCATION_MIGRATION_ID, CONTRIBUTOR_MIGRATION_ID] as const;
 export const LOCATION_MODEL_COLUMNS: Record<string, string[]> = {
   shelf_locations: ["location_type", "display_code"],
   loans: ["original_location_id", "original_location_slot", "original_location_coordinate", "original_location_text", "original_location_sort_order", "original_location_captured"],
+};
+export const CONTRIBUTOR_MODEL_COLUMNS: Record<string, string[]> = {
+  contributors: ["id", "display_name", "sort_name", "normalized_name", "active", "created_at", "updated_at"],
+  edition_contributors: ["edition_id", "contributor_id", "role", "order_index", "credited_as"],
 };
 
 export const REQUIRED_RUNTIME_TABLES = [
@@ -39,7 +44,7 @@ export const REQUIRED_WORK_COLUMNS = ["id", "title", "original_title", "descript
 
 export class SchemaTruthError extends Error {
   constructor(
-    public readonly code: "SCHEMA_MIGRATION_REQUIRED" | "UNKNOWN_MIGRATION" | "INCOMPLETE_WORK_SCHEMA" | "INCOMPLETE_LOCATION_SCHEMA",
+    public readonly code: "SCHEMA_MIGRATION_REQUIRED" | "UNKNOWN_MIGRATION" | "INCOMPLETE_WORK_SCHEMA" | "INCOMPLETE_LOCATION_SCHEMA" | "INCOMPLETE_CONTRIBUTOR_SCHEMA",
     message: string,
   ) {
     super(message);
@@ -65,6 +70,9 @@ export type SchemaInspection = {
   locationMigrationRecorded: boolean;
   missingLocationColumns: Record<string, string[]>;
   locationSchemaState: "absent" | "ready" | "partial" | "present-unrecorded" | "recorded-without-schema";
+  contributorMigrationRecorded: boolean;
+  missingContributorColumns: Record<string, string[]>;
+  contributorSchemaState: "absent" | "ready" | "partial" | "present-unrecorded" | "recorded-without-schema";
 };
 
 export function hasTable(database: Database.Database, tableName: string) {
@@ -131,6 +139,27 @@ export function inspectSchema(database: Database.Database): SchemaInspection {
     locationSchemaState = "ready";
   }
 
+  const contributorMigrationRecorded = migrationIds.has(CONTRIBUTOR_MIGRATION_ID);
+  const contributorTables = Object.keys(CONTRIBUTOR_MODEL_COLUMNS);
+  const contributorPresentTables = contributorTables.filter((table) => tableSet.has(table));
+  const missingContributorColumns = Object.fromEntries(
+    Object.entries(CONTRIBUTOR_MODEL_COLUMNS)
+      .map(([table, columns]) => [table, columns.filter((column) => !hasColumn(database, table, column))])
+      .filter(([, missing]) => missing.length > 0),
+  );
+  const contributorColumnCount = Object.values(CONTRIBUTOR_MODEL_COLUMNS).flat().length;
+  const contributorPresentCount = contributorColumnCount - Object.values(missingContributorColumns).flat().length;
+  let contributorSchemaState: SchemaInspection["contributorSchemaState"] = "absent";
+  if (contributorPresentTables.length === 0 && contributorPresentCount === 0 && !contributorMigrationRecorded) {
+    contributorSchemaState = "absent";
+  } else if (contributorPresentTables.length !== contributorTables.length || contributorPresentCount !== contributorColumnCount) {
+    contributorSchemaState = "partial";
+  } else if (!contributorMigrationRecorded) {
+    contributorSchemaState = "present-unrecorded";
+  } else {
+    contributorSchemaState = "ready";
+  }
+
   return {
     tables,
     missingRuntimeTables,
@@ -147,6 +176,9 @@ export function inspectSchema(database: Database.Database): SchemaInspection {
     locationMigrationRecorded,
     missingLocationColumns,
     locationSchemaState,
+    contributorMigrationRecorded,
+    missingContributorColumns,
+    contributorSchemaState,
   };
 }
 
@@ -166,6 +198,9 @@ export function assertRuntimeSchema(database: Database.Database) {
   }
   if (inspection.locationSchemaState === "partial" || inspection.locationSchemaState === "present-unrecorded" || inspection.locationSchemaState === "recorded-without-schema") {
     throw new SchemaTruthError("INCOMPLETE_LOCATION_SCHEMA", "Location schema state is " + inspection.locationSchemaState);
+  }
+  if (inspection.contributorSchemaState === "partial" || inspection.contributorSchemaState === "present-unrecorded" || inspection.contributorSchemaState === "recorded-without-schema") {
+    throw new SchemaTruthError("INCOMPLETE_CONTRIBUTOR_SCHEMA", "Contributor schema state is " + inspection.contributorSchemaState);
   }
   return inspection;
 }

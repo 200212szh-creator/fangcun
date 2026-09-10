@@ -2,6 +2,7 @@ import { ensureDatabase, sqlite } from "@/lib/db";
 import { uid } from "@/lib/utils";
 import type { BookEdition, OwnedCopy, Work } from "@/lib/types";
 import { assertCopyLocation } from "@/lib/db/location-repository";
+import { hasContributorModel, insertEditionContributorsInTransaction, legacyContributorInputs, normalizeEditionForContributorStorage, toContributorInputs, type ContributorInput } from "@/lib/catalog/contributors";
 
 export type CatalogSchemaMode = "legacy" | "work";
 
@@ -28,6 +29,7 @@ export type CatalogOwnedCopyInput = {
 };
 
 export type CatalogEditionWriteResult = { editionId: string; workId?: string };
+type InternalCatalogEditionWriteResult = CatalogEditionWriteResult & { created: boolean };
 
 export class CatalogCompatibilityError extends Error {
   constructor(
@@ -151,34 +153,54 @@ function insertEdition(editionId: string, edition: BookEdition, workId?: string)
   sqlite.prepare(`INSERT INTO book_editions (id,title,authors,translators,publisher,publication_year,edition,original_title,series_name,edition_statement,edition_number,print_run,publication_date,edition_notes,original_publisher,format,language,isbn10,isbn13,pages,description,cover_url,subjects,source,external_id,user_override) VALUES (${placeholders})`).run(...values);
 }
 
-function ensureEditionInTransaction(mode: CatalogSchemaMode, edition: BookEdition): CatalogEditionWriteResult {
+function contributorInputsForEdition(edition: BookEdition): ContributorInput[] {
+  if (edition.contributors === undefined) return legacyContributorInputs(edition);
+  return toContributorInputs(edition.contributors);
+}
+
+function writeNewEditionContributorsInTransaction(editionId: string, edition: BookEdition) {
+  const inputs = contributorInputsForEdition(edition);
+  if (!inputs.length) return;
+  if (!hasContributorModel()) {
+    if (edition.contributors?.length) throw new Error("Structured contributors require migration 0005_contributors");
+    return;
+  }
+  insertEditionContributorsInTransaction(editionId, inputs);
+}
+
+function ensureEditionInTransaction(mode: CatalogSchemaMode, edition: BookEdition): InternalCatalogEditionWriteResult {
   const editionId = edition.id || uid();
   if (mode === "work") {
     const existing = sqlite.prepare("SELECT id, work_id FROM book_editions WHERE id=?").get(editionId) as { id: string; work_id: string | null } | undefined;
     if (existing) {
       if (!existing.work_id) throw new CatalogCompatibilityError("WORK_RELATION_MISSING", `Edition ${editionId} has no Work relation`);
-      return { editionId, workId: existing.work_id };
+      return { editionId, workId: existing.work_id, created: false };
     }
   } else {
     const existing = sqlite.prepare("SELECT id FROM book_editions WHERE id=?").get(editionId) as { id: string } | undefined;
-    if (existing) return { editionId };
+    if (existing) return { editionId, created: false };
   }
 
+  const storedEdition = normalizeEditionForContributorStorage(edition);
   if (mode === "legacy") {
-    insertEdition(editionId, edition);
-    return { editionId };
+    insertEdition(editionId, storedEdition);
+    return { editionId, created: true };
   }
 
   const now = new Date().toISOString();
   const workId = uid();
-  sqlite.prepare("INSERT INTO works (id,title,original_title,description,created_at,updated_at) VALUES (?,?,?,?,?,?)").run(workId, edition.title, edition.originalTitle ?? null, edition.description ?? null, now, now);
-  insertEdition(editionId, edition, workId);
-  return { editionId, workId };
+  sqlite.prepare("INSERT INTO works (id,title,original_title,description,created_at,updated_at) VALUES (?,?,?,?,?,?)").run(workId, storedEdition.title, storedEdition.originalTitle ?? null, storedEdition.description ?? null, now, now);
+  insertEdition(editionId, storedEdition, workId);
+  return { editionId, workId, created: true };
 }
 
 export function createCatalogEdition(edition: BookEdition) {
   const mode = getCatalogSchemaMode();
-  const write = sqlite.transaction(() => ensureEditionInTransaction(mode, edition));
+  const write = sqlite.transaction(() => {
+    const result = ensureEditionInTransaction(mode, edition);
+    if (result.created) writeNewEditionContributorsInTransaction(result.editionId, edition);
+    return result.workId ? { editionId: result.editionId, workId: result.workId } : { editionId: result.editionId };
+  });
   return write();
 }
 
@@ -186,6 +208,7 @@ export function createCatalogOwnedCopy(input: CatalogOwnedCopyInput) {
   const mode = getCatalogSchemaMode();
   const write = sqlite.transaction(() => {
     const edition = ensureEditionInTransaction(mode, input.edition);
+    if (edition.created) writeNewEditionContributorsInTransaction(edition.editionId, input.edition);
     assertCopyLocation(input.shelfLocationId);
     const duplicate = input.edition.isbn13
       ? sqlite.prepare("SELECT c.id FROM owned_copies c JOIN book_editions e ON e.id=c.edition_id WHERE e.isbn13=? AND c.user_id=? AND c.deleted_at IS NULL LIMIT 1").get(input.edition.isbn13, "local-owner") as { id: string } | undefined

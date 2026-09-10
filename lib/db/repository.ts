@@ -4,6 +4,7 @@ import { assertEditionWorkRelation, createCatalogEdition as createCatalogEdition
 import { uid } from "@/lib/utils";
 import type { Annotation, BookEdition, Category, Concept, Loan, OwnedCopy, ResearchFolder, ResearchWork, ShelfLocation, Tag, WishlistItem } from "@/lib/types";
 import { assertCopyLocation, copyLocationReference, copyLocationSnapshot, createLocation as createLocationRecord, deleteLocation, hasLocationModel, listLocations as listLocationDtos, listShelfCompatibility, restoreCopyLocation, shelfUsage as countShelfUsage, updateLocation } from "@/lib/db/location-repository";
+import { hasContributorModel, loadEditionContributors, replaceEditionContributorsInTransaction, type ContributorPayload, type EditionContributorDto } from "@/lib/catalog/contributors";
 
 const USER_ID = "local-owner";
 const parse = <T>(value: unknown, fallback: T): T => { try { return value ? JSON.parse(String(value)) as T : fallback; } catch { return fallback; } };
@@ -13,20 +14,22 @@ export function listOwnedCopies(includeDeleted = false) {
   const deletedFilter = includeDeleted ? sql`` : sql`AND c.deleted_at IS NULL`;
   const records = db.all(sql`SELECT c.*, e.title, e.authors, e.translators, e.publisher, e.publication_year, e.edition, e.original_title, e.series_name, e.edition_statement, e.edition_number, e.print_run, e.publication_date, e.edition_notes, e.original_publisher, e.format, e.language, e.isbn10, e.isbn13, e.pages, e.description, e.cover_url, e.subjects, e.source, e.external_id FROM owned_copies c JOIN book_editions e ON e.id = c.edition_id WHERE c.user_id = ${USER_ID} ${deletedFilter} ORDER BY c.created_at DESC`) as Array<Record<string, unknown>>;
   const works = loadWorksForEditions(records.map((record) => String(record.edition_id)));
-  return records.map((record) => toOwnedCopy(record, works.get(String(record.edition_id))));
+  const contributors = loadEditionContributors(records.map((record) => String(record.edition_id)));
+  return records.map((record) => toOwnedCopy(record, works.get(String(record.edition_id)), contributors.get(String(record.edition_id))));
 }
 
 export function getOwnedCopy(id: string) {
   ensureDatabase();
   const record = db.get(sql`SELECT c.*, e.title, e.authors, e.translators, e.publisher, e.publication_year, e.edition, e.original_title, e.series_name, e.edition_statement, e.edition_number, e.print_run, e.publication_date, e.edition_notes, e.original_publisher, e.format, e.language, e.isbn10, e.isbn13, e.pages, e.description, e.cover_url, e.subjects, e.source, e.external_id FROM owned_copies c JOIN book_editions e ON e.id = c.edition_id WHERE c.id = ${id} AND c.user_id = ${USER_ID}`) as Record<string, unknown> | undefined;
   const works = record ? loadWorksForEditions([String(record.edition_id)]) : new Map();
-  return record ? toOwnedCopy(record, works.get(String(record.edition_id))) : null;
+  const contributors = record ? loadEditionContributors([String(record.edition_id)]) : new Map<string, EditionContributorDto[]>();
+  return record ? toOwnedCopy(record, works.get(String(record.edition_id)), contributors.get(String(record.edition_id))) : null;
 }
 
-function toOwnedCopy(record: Record<string, unknown>, work?: import("@/lib/types").Work): OwnedCopy {
+function toOwnedCopy(record: Record<string, unknown>, work?: import("@/lib/types").Work, contributors?: EditionContributorDto[]): OwnedCopy {
   const category = record.category_id ? db.get(sql`SELECT id,name,description,color FROM categories WHERE id = ${record.category_id}`) as Category | undefined : undefined;
   const tags = db.all(sql`SELECT t.id,t.name,t.color FROM tags t JOIN copy_tags ct ON ct.tag_id=t.id WHERE ct.copy_id=${record.id}`) as Tag[];
-  const edition: BookEdition = { id: String(record.edition_id), title: String(record.title), authors: parse<string[]>(record.authors, []), translators: parse<string[]>(record.translators, []), publisher: record.publisher ? String(record.publisher) : undefined, publicationYear: record.publication_year ? Number(record.publication_year) : undefined, edition: record.edition ? String(record.edition) : undefined, originalTitle: record.original_title ? String(record.original_title) : undefined, seriesName: record.series_name ? String(record.series_name) : undefined, editionStatement: record.edition_statement ? String(record.edition_statement) : undefined, editionNumber: record.edition_number ? Number(record.edition_number) : undefined, printRun: record.print_run ? Number(record.print_run) : undefined, publicationDate: record.publication_date ? String(record.publication_date) : undefined, editionNotes: record.edition_notes ? String(record.edition_notes) : undefined, originalPublisher: record.original_publisher ? String(record.original_publisher) : undefined, format: record.format ? String(record.format) : undefined, language: record.language ? String(record.language) : undefined, isbn10: record.isbn10 ? String(record.isbn10) : undefined, isbn13: record.isbn13 ? String(record.isbn13) : undefined, pages: record.pages ? Number(record.pages) : undefined, description: record.description ? String(record.description) : undefined, coverUrl: record.cover_url ? String(record.cover_url) : undefined, subjects: parse<string[]>(record.subjects, []), source: String(record.source), externalId: record.external_id ? String(record.external_id) : undefined, workId: work?.id };
+  const edition: BookEdition = { id: String(record.edition_id), title: String(record.title), authors: parse<string[]>(record.authors, []), translators: parse<string[]>(record.translators, []), ...(contributors ? { contributors } : {}), publisher: record.publisher ? String(record.publisher) : undefined, publicationYear: record.publication_year ? Number(record.publication_year) : undefined, edition: record.edition ? String(record.edition) : undefined, originalTitle: record.original_title ? String(record.original_title) : undefined, seriesName: record.series_name ? String(record.series_name) : undefined, editionStatement: record.edition_statement ? String(record.edition_statement) : undefined, editionNumber: record.edition_number ? Number(record.edition_number) : undefined, printRun: record.print_run ? Number(record.print_run) : undefined, publicationDate: record.publication_date ? String(record.publication_date) : undefined, editionNotes: record.edition_notes ? String(record.edition_notes) : undefined, originalPublisher: record.original_publisher ? String(record.original_publisher) : undefined, format: record.format ? String(record.format) : undefined, language: record.language ? String(record.language) : undefined, isbn10: record.isbn10 ? String(record.isbn10) : undefined, isbn13: record.isbn13 ? String(record.isbn13) : undefined, pages: record.pages ? Number(record.pages) : undefined, description: record.description ? String(record.description) : undefined, coverUrl: record.cover_url ? String(record.cover_url) : undefined, subjects: parse<string[]>(record.subjects, []), source: String(record.source), externalId: record.external_id ? String(record.external_id) : undefined, workId: work?.id };
   const locationText = record.location ? String(record.location) : undefined;
   const shelfLocationId = record.shelf_location_id ? String(record.shelf_location_id) : undefined;
   const shelfSlot = record.shelf_slot ? String(record.shelf_slot) : undefined;
@@ -49,7 +52,7 @@ export function updateOwnedCopy(id: string, input: Record<string, unknown>) {
   return getOwnedCopy(id);
 }
 
-export function updateBookEdition(id: string, input: Record<string, unknown>) {
+function updateBookEditionInTransaction(id: string, input: Record<string, unknown>) {
   ensureDatabase();
   assertEditionWorkRelation(id);
   const current = db.get(sql`SELECT id FROM book_editions WHERE id=${id}`);
@@ -57,7 +60,13 @@ export function updateBookEdition(id: string, input: Record<string, unknown>) {
   const value = <T>(key: string, fallback: T) => input[key] !== undefined ? input[key] as T : fallback;
   const record = db.get(sql`SELECT * FROM book_editions WHERE id=${id}`) as Record<string, unknown>;
   db.run(sql`UPDATE book_editions SET title=${value("title", String(record.title))}, authors=${JSON.stringify(value("authors", parse<string[]>(record.authors, [])))}, translators=${JSON.stringify(value("translators", parse<string[]>(record.translators, [])))}, publisher=${value("publisher", record.publisher as string | null)}, publication_year=${value("publicationYear", record.publication_year as number | null)}, edition=${value("edition", record.edition as string | null)}, original_title=${value("originalTitle", record.original_title as string | null)}, series_name=${value("seriesName", record.series_name as string | null)}, edition_statement=${value("editionStatement", record.edition_statement as string | null)}, edition_number=${value("editionNumber", record.edition_number as number | null)}, print_run=${value("printRun", record.print_run as number | null)}, publication_date=${value("publicationDate", record.publication_date as string | null)}, edition_notes=${value("editionNotes", record.edition_notes as string | null)}, original_publisher=${value("originalPublisher", record.original_publisher as string | null)}, format=${value("format", record.format as string | null)}, language=${value("language", record.language as string | null)}, isbn10=${value("isbn10", record.isbn10 as string | null)}, isbn13=${value("isbn13", record.isbn13 as string | null)}, pages=${value("pages", record.pages as number | null)}, description=${value("description", record.description as string | null)}, cover_url=${value("coverUrl", record.cover_url as string | null)}, subjects=${JSON.stringify(value("subjects", parse<string[]>(record.subjects, [])))}, source=${value("source", String(record.source))}, external_id=${value("externalId", record.external_id as string | null)} WHERE id=${id}`);
+  if (input.contributors !== undefined) replaceEditionContributorsInTransaction(id, input.contributors as ContributorPayload[]);
   return db.get(sql`SELECT id FROM book_editions WHERE id=${id}`);
+}
+
+export function updateBookEdition(id: string, input: Record<string, unknown>) {
+  const write = sqlite.transaction(() => updateBookEditionInTransaction(id, input));
+  return write();
 }
 
 export function updateCatalogBook(id: string, input: { edition?: Record<string, unknown>; copy?: Record<string, unknown> }) {
@@ -65,7 +74,7 @@ export function updateCatalogBook(id: string, input: { edition?: Record<string, 
   const current = getOwnedCopy(id);
   if (!current) return null;
   const write = sqlite.transaction(() => {
-    if (input.edition) updateBookEdition(current.editionId, input.edition);
+    if (input.edition) updateBookEditionInTransaction(current.editionId, input.edition);
     if (input.copy) updateOwnedCopy(id, input.copy);
   });
   write();
@@ -107,7 +116,35 @@ export function updateAnnotation(id: string, input: { pageLabel?: string | null;
 export function deleteAnnotation(id: string) { ensureDatabase(); db.run(sql`DELETE FROM annotation_concepts WHERE annotation_id=${id}`); db.run(sql`DELETE FROM annotations WHERE id=${id}`); }
 function setAnnotationConcepts(annotationId: string, names: string[]) { db.run(sql`DELETE FROM annotation_concepts WHERE annotation_id=${annotationId}`); for (const rawName of names) { const name = rawName.trim().slice(0, 80); if (!name) continue; let concept = db.get(sql`SELECT id FROM concepts WHERE user_id=${USER_ID} AND lower(name)=lower(${name})`) as { id: string } | undefined; if (!concept) { const id = uid(); db.run(sql`INSERT INTO concepts (id,name,user_id) VALUES (${id},${name},${USER_ID})`); concept = { id }; } db.run(sql`INSERT OR IGNORE INTO annotation_concepts (annotation_id,concept_id) VALUES (${annotationId},${concept.id})`); } }
 
-export function listWishlist() { ensureDatabase(); const records = db.all(sql`SELECT w.id AS wishlist_id,w.note,w.created_at,e.id AS edition_id,e.title,e.authors,e.publisher,e.publication_year,e.format,e.language,e.isbn13,e.cover_url,e.source FROM wishlist_items w JOIN book_editions e ON e.id=w.edition_id WHERE w.user_id=${USER_ID} ORDER BY w.created_at DESC`) as Array<Record<string, unknown>>; const works = loadWorksForEditions(records.map((record) => String(record.edition_id))); return records.map((record) => ({ id: String(record.wishlist_id), note: record.note ? String(record.note) : undefined, createdAt: String(record.created_at), edition: { id: String(record.edition_id), title: String(record.title), authors: parse<string[]>(record.authors, []), publisher: record.publisher ? String(record.publisher) : undefined, publicationYear: record.publication_year ? Number(record.publication_year) : undefined, format: record.format ? String(record.format) : undefined, language: record.language ? String(record.language) : undefined, isbn13: record.isbn13 ? String(record.isbn13) : undefined, coverUrl: record.cover_url ? String(record.cover_url) : undefined, source: String(record.source), workId: works.get(String(record.edition_id))?.id } })) as WishlistItem[]; }
+export function listWishlist() {
+  ensureDatabase();
+  const records = db.all(sql`SELECT w.id AS wishlist_id,w.note,w.created_at,e.id AS edition_id,e.title,e.authors,e.translators,e.publisher,e.publication_year,e.format,e.language,e.isbn13,e.cover_url,e.source FROM wishlist_items w JOIN book_editions e ON e.id=w.edition_id WHERE w.user_id=${USER_ID} ORDER BY w.created_at DESC`) as Array<Record<string, unknown>>;
+  const works = loadWorksForEditions(records.map((record) => String(record.edition_id)));
+  const contributors = loadEditionContributors(records.map((record) => String(record.edition_id)));
+  return records.map((record) => {
+    const editionId = String(record.edition_id);
+    return {
+      id: String(record.wishlist_id),
+      note: record.note ? String(record.note) : undefined,
+      createdAt: String(record.created_at),
+      edition: {
+        id: editionId,
+        title: String(record.title),
+        authors: parse<string[]>(record.authors, []),
+        translators: parse<string[]>(record.translators, []),
+        ...(contributors.has(editionId) ? { contributors: contributors.get(editionId) } : {}),
+        publisher: record.publisher ? String(record.publisher) : undefined,
+        publicationYear: record.publication_year ? Number(record.publication_year) : undefined,
+        format: record.format ? String(record.format) : undefined,
+        language: record.language ? String(record.language) : undefined,
+        isbn13: record.isbn13 ? String(record.isbn13) : undefined,
+        coverUrl: record.cover_url ? String(record.cover_url) : undefined,
+        source: String(record.source),
+        workId: works.get(editionId)?.id,
+      },
+    };
+  }) as WishlistItem[];
+}
 export function addWishlist(edition: BookEdition, note?: string) { ensureDatabase(); const existing = edition.isbn13 ? db.get(sql`SELECT w.id FROM wishlist_items w JOIN book_editions e ON e.id=w.edition_id WHERE e.isbn13=${edition.isbn13} AND w.user_id=${USER_ID}`) : null; if (existing) return existing; const { editionId } = createCatalogEditionInAdapter(edition); const id = uid(); db.run(sql`INSERT INTO wishlist_items (id,edition_id,note,user_id,created_at) VALUES (${id},${editionId},${note ?? null},${USER_ID},${new Date().toISOString()})`); return { id }; }
 export function removeWishlist(id: string) { ensureDatabase(); db.run(sql`DELETE FROM wishlist_items WHERE id=${id} AND user_id=${USER_ID}`); }
 
@@ -116,4 +153,4 @@ function toResearchWork(work: Record<string, unknown>): ResearchWork { const fol
 export function createResearchWork(input: Omit<ResearchWork, "id" | "folderIds"> & { folderId?: string }) { ensureDatabase(); const id = uid(); const now = new Date().toISOString(); db.run(sql`INSERT INTO research_works (id,title,authors,abstract,doi,journal,year,tags,notes,open_access_url,source,user_id,created_at) VALUES (${id},${input.title},${JSON.stringify(input.authors)},${input.abstract ?? null},${input.doi ?? null},${input.journal ?? null},${input.year ?? null},${JSON.stringify(input.tags)},${input.notes ?? null},${input.openAccessUrl ?? null},${input.source ?? "local"},${USER_ID},${now})`); if (input.folderId) db.run(sql`INSERT OR IGNORE INTO folder_works (folder_id,work_id) VALUES (${input.folderId},${id})`); return id; }
 export function createResearchFolder(input: { name: string; description?: string }) { ensureDatabase(); const id = uid(); db.run(sql`INSERT INTO research_folders (id,name,description,user_id,created_at) VALUES (${id},${input.name},${input.description ?? null},${USER_ID},${new Date().toISOString()})`); return { id }; }
 
-export function exportData() { ensureDatabase(); return { version: 1, exportedAt: new Date().toISOString(), userId: USER_ID, books: listOwnedCopies(true), categories: listCategories(), tags: listTags(), shelves: listShelves(), locations: listLocations(true), wishlist: listWishlist(), research: listResearch() }; }
+export function exportData() { ensureDatabase(); const contributorReady = hasContributorModel(); return { version: contributorReady ? 2 : 1, ...(contributorReady ? { compatibilityVersion: 1 } : {}), exportedAt: new Date().toISOString(), userId: USER_ID, books: listOwnedCopies(true), categories: listCategories(), tags: listTags(), shelves: listShelves(), locations: listLocations(true), wishlist: listWishlist(), research: listResearch() }; }

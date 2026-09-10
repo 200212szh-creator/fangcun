@@ -77,13 +77,18 @@ function localBookCandidates(query: string) {
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return [] as BookCandidate[];
   return listOwnedCopies().map((copy) => copy.edition).filter((edition) => {
-    const haystack = [edition.title, edition.authors.join(" "), edition.isbn13 ?? ""].join(" ").toLocaleLowerCase();
+    const contributorNames = (edition.contributors ?? []).flatMap((item) => "contributor" in item ? [item.contributor.displayName, item.creditedAs ?? ""] : [item.displayName, item.creditedAs ?? ""]);
+    const haystack = [edition.title, edition.authors.join(" "), edition.translators?.join(" ") ?? "", contributorNames.join(" "), edition.isbn13 ?? ""].join(" ").toLocaleLowerCase();
     return haystack.includes(needle) || edition.title.toLocaleLowerCase().includes(needle);
   }).map((edition) => {
     const candidate = candidateFromEdition({ ...edition, source: "本地藏书" }, 1);
     localEditions.set(candidate.id, edition);
     return candidate;
   });
+}
+
+export function searchLocalBookCandidates(query: string) {
+  return localBookCandidates(query);
 }
 
 let lastBookSearchOffline = false;
@@ -106,7 +111,8 @@ export async function searchBookCandidates(query: string, author?: string, langu
   });
   const candidates = [...grouped.values()].map(({ edition, count }) => candidateFromEdition(edition, count));
   const ranked = rankCandidates(query, candidates).filter((candidate) => scoreCandidate(query, candidate) >= 0.55).slice(0, 8);
-  const results = ranked.length ? ranked : localBookCandidates(query);
+  const local = localBookCandidates(query);
+  const results = [...local, ...ranked.filter((candidate) => !local.some((item) => item.id === candidate.id))].slice(0, 8);
   results.forEach((candidate) => candidateTitles.set(candidate.id, candidate.title));
   return results.length ? setCached(cacheKey, results, CACHE_TTL.search) : [];
 }

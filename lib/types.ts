@@ -1,7 +1,8 @@
 export type Locale = "zh" | "en";
 export type ReadingStatus = "unread" | "reading" | "read" | "paused" | "dropped";
 export type Work = { id: string; title: string; originalTitle?: string; description?: string; createdAt: string; updatedAt: string };
-export type BookEdition = { id: string; title: string; authors: string[]; translators?: string[]; publisher?: string; publicationYear?: number; edition?: string; originalTitle?: string; seriesName?: string; editionStatement?: string; editionNumber?: number; printRun?: number; publicationDate?: string; editionNotes?: string; originalPublisher?: string; format?: string; language?: string; isbn10?: string; isbn13?: string; pages?: number; description?: string; coverUrl?: string; subjects?: string[]; source: string; externalId?: string; workId?: string };
+import type { ContributorPayload } from "@/lib/catalog/contributors";
+export type BookEdition = { id: string; title: string; authors: string[]; translators?: string[]; contributors?: ContributorPayload[]; publisher?: string; publicationYear?: number; edition?: string; originalTitle?: string; seriesName?: string; editionStatement?: string; editionNumber?: number; printRun?: number; publicationDate?: string; editionNotes?: string; originalPublisher?: string; format?: string; language?: string; isbn10?: string; isbn13?: string; pages?: number; description?: string; coverUrl?: string; subjects?: string[]; source: string; externalId?: string; workId?: string };
 export type BookCandidate = { id: string; title: string; authors: string[]; description?: string; coverUrl?: string; publisher?: string; publicationYear?: number; format?: string; language?: string; isbn13?: string; score: number; editionCount: number; source: string };
 export type Category = { id: string; name: string; description?: string; color?: string };
 export type Tag = { id: string; name: string; color?: string };

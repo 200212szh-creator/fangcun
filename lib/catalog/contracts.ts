@@ -1,4 +1,5 @@
 import type { AcquisitionMethod, BookEdition, LocationDto, OwnedCopy, ReadingStatus, Work } from "@/lib/types";
+import type { ContributorInput } from "@/lib/catalog/contributors";
 
 /**
  * Stable domain-facing Work shape. Database column names and migration-only
@@ -53,7 +54,9 @@ export type CreateCatalogBookDto = {
   copy: CreateCatalogCopyDto;
 };
 
-export type UpdateCatalogEditionDto = Partial<Omit<EditionDto, "id" | "source" | "workId">>;
+export type UpdateCatalogEditionDto = Partial<Omit<EditionDto, "id" | "source" | "workId">> & {
+  contributors?: ContributorInput[];
+};
 
 export type UpdateCatalogCopyDto = Partial<Pick<
   CopyDto,
