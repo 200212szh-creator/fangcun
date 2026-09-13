@@ -77,7 +77,9 @@ function Get-VerifiedState {
 function Get-Health {
   try {
     $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$Port/api/health" -TimeoutSec 3
-    $body = $response.Content | ConvertFrom-Json
+    $response.RawContentStream.Position = 0
+    $bodyText = [System.Text.Encoding]::UTF8.GetString($response.RawContentStream.ToArray())
+    $body = $bodyText | ConvertFrom-Json
     $expectedRelease = Get-ReleaseDirectory
     if ($response.StatusCode -eq 200 -and $body.app -eq "fangcun-archive" -and $body.status -eq "ok" -and $body.database -eq "ok" -and $body.provenanceStatus -eq "ok" -and [System.IO.Path]::GetFullPath([string]$body.releaseDir) -eq $expectedRelease) { return @{ ok = $true; reason = "healthy" } }
     return @{ ok = $false; reason = "端口响应不是健康的方寸服务" }

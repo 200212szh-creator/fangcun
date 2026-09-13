@@ -125,3 +125,335 @@ Production runtime modified: NO.
 
 Phase A.0 stops here. A separate explicit instruction is required to retry
 Task 008B Phase A.
+
+## 0. Metadata
+
+Task: 008B — Controlled Production Contributor Migration, Phase A.
+
+Execution date: 2026-09-13.
+
+Repository: 200212szh-creator/fangcun.
+
+Phase A source of truth at release build time:
+
+    89a2471d294242bee9d29f01d2734733c988405f
+
+At the start of this rerun, local main and origin/main both matched the
+source commit and the working tree was clean. The release was built from that
+exact commit before the documentation and watchdog checkpoint changes below.
+
+Formal database target:
+
+    D:\方寸数据\data\library.db
+
+Formal 0005 contributor migration: NOT APPLIED.
+
+## 1. Source Commit Difference Audit
+
+The previous Contributor release was built from:
+
+    f662e35d52eb4a169daec31c498d5c3918005a06
+
+The new source of truth is:
+
+    89a2471d294242bee9d29f01d2734733c988405f
+
+Intervening commits:
+
+| Commit | Files | Classification |
+| --- | --- | --- |
+| 991d3ead8bf82b2aeb103a12b5fa4039d6a3aab8 | .gitignore; the Task 008A and Task 008B reports | repository hygiene; docs/report |
+| 89a2471d294242bee9d29f01d2734733c988405f | design-system/default/references/fangcun-editorial-home-v2.png | design source asset |
+
+The intervening file audit found no executable product code, runtime code,
+migration code, test code, or build configuration. The PNG is a valid
+1487 x 1058 canonical visual source asset. The root .worktrees ignore rule
+is limited to the local worktree container.
+
+## 2. Quality Gates
+
+All quality gates passed against the exact Phase A source commit:
+
+- typecheck: PASS
+- lint: PASS
+- unit tests: PASS — 11 files; 30 passed; 1 skipped
+- production build: PASS — Next.js 15.5.25; all 15 static pages generated
+- database validation: PASS — formal database; integrity and quick checks ok
+- E2E: PASS — 32 passed
+- git diff check: PASS
+
+The E2E suite used its isolated test database for write-path coverage. No
+formal write endpoint was called during runtime acceptance.
+
+## 3. Formal Database Baseline
+
+The formal database remained at:
+
+    D:\方寸数据\data\library.db
+
+Migration history was exactly:
+
+    0001_archive_fields
+    0002_loans_annotations
+    0003_works
+    0004_location_model
+
+Read-only baseline:
+
+| Measure | Value |
+| --- | ---: |
+| Works | 2 |
+| Editions | 2 |
+| Copies | 2 |
+| Active Copies | 2 |
+| Locations | 2 |
+| Loans | 0 |
+| Annotations | 0 |
+
+Contributor and edition_contributors tables were absent. The database
+integrity_check and quick_check returned ok, and foreign_key_check returned
+zero violations.
+
+The designated backup was re-hashed and remained:
+
+    D:\方寸数据\backups\pre-upgrade\fangcun-pre-upgrade-2026-09-09T03-15-18-486Z.db
+    79ce0681274e234842ef89c9fad378f7bdb151c020757866cd3e837b1b0fe38f
+
+The 0004-era backup used for the contributor runner PRECHECK was:
+
+    D:\方寸数据\backups\pre-upgrade\fangcun-pre-upgrade-2026-09-10T03-15-24-776Z.db
+    0947a7cc748a45281427fab4a5b0ee20a3d776746c12fe4c80c16f742d0a7016
+
+## 4. Runtime Pre-Activation Audit
+
+The old active release was:
+
+    D:\图书库\runtime\releases\2026-09-10_Task007B_location_main_phaseB_checkpoint
+
+The old service host was PID 5912 and the old Next server was PID 21732.
+Both were confirmed as D:\node.exe processes. The host command line was the
+Fangcun service-host launcher, the server command line pointed to the exact
+old release server.js, the server parent was PID 5912, and the only listener
+on 127.0.0.1:3000 was PID 21732.
+
+The two supervised tasks were the only tasks in scope:
+
+    Fangcun Archive Service
+    Fangcun Archive Health Recovery
+
+No unrelated Node process, Windows service, project, or port owner was
+modified.
+
+## 5. Safe Stop and Watchdog Alignment
+
+Only the two verified Fangcun tasks were temporarily disabled. The old host
+was asked to stop through the service-host graceful SIGTERM path. No force
+kill, task kill, or unrelated process termination was used.
+
+After the signal, both old PIDs exited within the guarded stop window,
+127.0.0.1:3000 was no longer listening, and no other Fangcun-scoped Node
+writer remained. The launcher left a stale service.pid state file after the
+processes had exited; it was removed only after the exact old PIDs and port
+were confirmed absent, matching the project watchdog cleanup behavior.
+
+Windows PowerShell 5.1 was decoding the health JSON using the system code
+page because the endpoint did not declare a charset. That caused a healthy
+Chinese release path to be rejected by the existing watchdog. The minimal
+runtime-only repair decodes the response stream as UTF-8. It does not change
+UI, database, migration, or business behavior.
+
+The repaired watchdog one-shot check returned:
+
+    status=ok
+    reason=healthy
+
+Both Fangcun tasks were then re-enabled. The health recovery task was started
+once and returned LastTaskResult=0. Recovery/watchdog state: SAFE.
+
+## 6. New Release
+
+The new release was created from the exact required source commit and was not
+reused from the previous Contributor release:
+
+    D:\图书库\runtime\releases\2026-09-13_Task008B_PhaseA_contributor_main_final
+
+Release metadata:
+
+| Field | Value |
+| --- | --- |
+| Build ID | y95L5VD4s-HsHltBWFjoG |
+| sourceCommit | 89a2471d294242bee9d29f01d2734733c988405f |
+| dirty | false |
+| provenanceStatus | ok |
+| server.js | present |
+| .next/static | present |
+| better-sqlite3 native binding | present |
+
+The old release is no longer active.
+
+## 7. Controlled Activation
+
+The existing promote-release.ps1 mechanism completed successfully. It
+performed its pre-upgrade backup and integrity check and atomically updated
+both release pointers:
+
+    D:\图书库\runtime\current-release.txt
+    D:\方寸数据\state\current-release.txt
+
+Both pointers now resolve to the new Task 008B release. The watchdog then
+started the service from the new pointer while the two recovery tasks were
+temporarily paused for validation.
+
+The active writer chain is:
+
+    host PID 9704 -> Next server PID 37860
+
+PID 37860 is the sole listener on 127.0.0.1:3000. Both supervised tasks are
+enabled and Ready after validation.
+
+## 8. Runtime Provenance
+
+The active GET /api/health response reported:
+
+| Field | Value |
+| --- | --- |
+| app | fangcun-archive |
+| status | ok |
+| database | ok |
+| release | 2026-09-13_Task008B_PhaseA_contributor_main_final |
+| buildId | y95L5VD4s-HsHltBWFjoG |
+| sourceCommit | 89a2471d294242bee9d29f01d2734733c988405f |
+| dirty | false |
+| provenanceStatus | ok |
+| currentMigration | 0004_location_model |
+
+## 9. Pre-0005 Compatibility and Runner Verification
+
+The final active runtime retained exact pre-0005 compatibility:
+
+- migration history remained 0001, 0002, 0003, 0004_location_model
+- contributor tables remained absent
+- formal database integrity remained valid
+- current schema state remained ready
+
+The production runner exists at scripts/migrate-v5-production.ts and was
+verified without execution. Its locked migration SQL SHA-256 is:
+
+    693d8aa18563b998bfed57c3b5f49ab0e7f305372db742a43dae2d4b55616b83
+
+The read-only runner PRECHECK passed with target FORMAL, service=stopped,
+the verified 0004-era backup, the required baseline, and approval token:
+
+    EXECUTE_0005_CONTRIBUTORS
+
+The PRECHECK reported formalDatabaseMutation=false and expected only the
+future 0005 contributor schema changes. No DRY-RUN or EXECUTE mode was run.
+
+## 10. Legacy Author and Translator Display
+
+Read-only GET /api/catalog/books returned two book records. Both records
+preserved the legacy edition.authors field with the existing author values,
+and both preserved the legacy edition.translators field as an empty array.
+
+Legacy author display: PASS — 2 of 2 records.
+
+Legacy translator display: PASS — 2 of 2 records; empty arrays preserved.
+
+No UI-side Contributor identity inference or deduplication was introduced.
+
+## 11. Runtime Smoke and E2E
+
+The active release returned HTTP 200 for all 12 read-only smoke targets:
+
+    /api/health
+    /api/catalog/books
+    /api/catalog/locations
+    /api/catalog/books/c6a3c0d3-bd12-4fac-bde5-b1ed6486d72e
+    /api/catalog/books/c6a3c0d3-bd12-4fac-bde5-b1ed6486d72e/loans
+    /home
+    /library
+    /search?q=Im%20Westen
+    /manage
+    /settings
+    /research
+    /add
+
+Runtime smoke: PASS.
+
+The full isolated E2E suite remained PASS at 32 passed. No write smoke,
+fixture insertion, contributor migration, or formal write request was
+performed in this Phase A rerun.
+
+## 12. Formal Database Final Integrity
+
+Final read-only validation again reported:
+
+- database path: D:\方寸数据\data\library.db
+- migration history: 0001, 0002, 0003, 0004_location_model
+- Works: 2
+- Editions: 2
+- Copies: 2
+- Locations: 2
+- Loans: 0
+- Annotations: 0
+- contributor tables: absent
+- integrity_check: ok
+- quick_check: ok
+- foreign_key_check: 0
+- formalDatabaseMutation: false
+
+The formal database SHA-256 was recomputed through the running Node shared
+read path and remained:
+
+    282d5b79c4546fd1143a2c9ee080a8192c7fb1b660b3fd25efe8afb8e949e243
+
+No schema or business-data change occurred. Formal DB touched: NO.
+
+## 13. Phase B Readiness
+
+Task 008B Phase A: COMPLETE.
+
+New active release: YES.
+
+Old release active: NO.
+
+Recovery/watchdog: SAFE.
+
+Pre-0005 compatibility: PASS.
+
+Legacy author display: PASS.
+
+Legacy translator display: PASS.
+
+Formal DB touched: NO.
+
+Formal migrations:
+
+    0001_archive_fields
+    0002_loans_annotations
+    0003_works
+    0004_location_model
+
+Contributor tables: ABSENT.
+
+0005_contributors: NOT APPLIED.
+
+Integrity: PASS.
+
+Production runner: PRECHECK PASS; EXECUTE NOT RUN.
+
+Migration SHA-256:
+
+    693d8aa18563b998bfed57c3b5f49ab0e7f305372db742a43dae2d4b55616b83
+
+Approval token:
+
+    EXECUTE_0005_CONTRIBUTORS
+
+Phase B readiness: READY.
+
+WAITING FOR:
+
+    GO — EXECUTE TASK 008B PHASE B
+
+STOP.
