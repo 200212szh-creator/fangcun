@@ -458,6 +458,291 @@ WAITING FOR:
 
 STOP.
 
+## Phase B — Controlled Production Migration
+
+Task 008B Phase B executed the approved Contributor migration against the
+formal production database only after the documented preconditions passed.
+The docs-only checkpoint aafbf77910826e0e36d80f0e5207ab6052bdfe07 was
+verified clean and equal to origin/main. The active executable release
+remained the Phase A.1 release built from runtime baseline
+b89ca628f332933e873db63266c9b0bc545e5a39; no rebuild was performed.
+
+### B.1 Pre-Execution Baseline
+
+The formal database target was:
+
+    D:\方寸数据\data\library.db
+
+Before migration, the exact history was:
+
+    0001_archive_fields
+    0002_loans_annotations
+    0003_works
+    0004_location_model
+
+0005_contributors was not applied and both Contributor tables were absent.
+The read-only formal database SHA-256 was:
+
+    282d5b79c4546fd1143a2c9ee080a8192c7fb1b660b3fd25efe8afb8e949e243
+
+The pre-migration business baseline was:
+
+    Works: 2
+    Editions: 2
+    Copies: 2
+    Active Copies: 2
+    Locations: 2
+    Loans: 0
+    Annotations: 0
+
+integrity_check=ok, quick_check=ok, and foreign_key_check=0.
+
+The exact legacy source values were frozen before execution:
+
+    Edition 32103d60-9f61-4540-98c0-8e43db788aed
+    authors: ["芥川龙之介"]
+    translators: []
+
+    Edition open--works-OL1209288W
+    authors: ["Erich Maria Remarque"]
+    translators: []
+
+The conservative backfill plan was:
+
+    expected contributors: 2
+    expected edition_contributors: 2
+    expected author relations: 2
+    expected translator relations: 0
+
+Per Edition:
+
+    32103d60-9f61-4540-98c0-8e43db788aed
+    -> 芥川龙之介 / author / order_index 0
+
+    open--works-OL1209288W
+    -> Erich Maria Remarque / author / order_index 0
+
+Each legacy credit row was assigned a distinct Contributor identity. No
+automatic merge or display-name identity inference was performed.
+
+### B.2 Runner and Migration Window
+
+The canonical normalized migration SQL SHA-256 was:
+
+    693d8aa18563b998bfed57c3b5f49ab0e7f305372db742a43dae2d4b55616b83
+
+The verified production runner was used with:
+
+    approval: EXECUTE_0005_CONTRIBUTORS
+    target: FORMAL
+    database: D:\方寸数据\data\library.db
+    migration: 0005_contributors
+
+The Fangcun writer was stopped through the verified service-host graceful
+SIGTERM path. No force termination was used:
+
+    host before:   20824
+    server before: 11340
+
+The two Fangcun scheduled watchdog tasks were disabled during the migration
+window. After shutdown, both recorded processes exited, port
+127.0.0.1:3000 was released, and the Fangcun writer scan returned zero.
+The stale service.pid file was removed only after exact PID and port absence
+was confirmed.
+
+### B.3 Fresh Backup and Restore Rehearsal
+
+A new rollback anchor was created from the stopped formal database through
+the existing Fangcun database maintenance procedure:
+
+    path:
+    D:\方寸数据\backups\pre-upgrade\fangcun-pre-upgrade-2026-09-13T14-08-20-292Z.db
+    createdAt: 2026-09-13T14:08:20.303Z
+    size: 192512 bytes
+    SHA-256: 0947a7cc748a45281427fab4a5b0ee20a3d776746c12fe4c80c16f742d0a7016
+
+The fresh backup retained exact 0001–0004 history, absent Contributor schema,
+the frozen business counts, the frozen legacy values, integrity_check=ok,
+quick_check=ok, and foreign_key_check=0. Its sidecar hash matched the file
+hash and remained unchanged after migration.
+
+The existing independent restore validation copied the fresh backup to an
+isolated temporary location, opened it read-only, validated schema, counts,
+integrity and foreign keys, and removed only that temporary rehearsal copy.
+
+Restore rehearsal: PASS.
+
+### B.4 Dry-Run and Single Execution
+
+The formal production runner PRECHECK passed with the fresh backup, stopped
+service attestation, zero active writers, exact baseline, and exact SQL hash.
+The formal DRY-RUN then passed and left the formal database unchanged:
+0005 remained absent and the pre-migration SHA-256 remained
+282d5b79c4546fd1143a2c9ee080a8192c7fb1b660b3fd25efe8afb8e949e243.
+
+The runner EXECUTE mode was invoked exactly once. It returned:
+
+    status: PASS
+    migrationStatus: applied
+    migration timestamp: 2026-09-13T14:10:35.667Z
+
+No retry, manual SQL patch, or second execution was performed.
+
+### B.5 Post-Migration Schema and Backfill
+
+The final formal migration history is exactly:
+
+    0001_archive_fields
+    0002_loans_annotations
+    0003_works
+    0004_location_model
+    0005_contributors
+
+Both Contributor tables exist. The migration created the expected columns,
+the composite primary key on edition_contributors, the two expected
+indexes, the book_editions and contributors foreign keys, and the canonical
+role CHECK constraint.
+
+Actual Contributor results:
+
+    contributors: 2
+    edition_contributors: 2
+    author relations: 2
+    translator relations: 0
+
+Actual per Edition mappings exactly matched the frozen plan:
+
+    32103d60-9f61-4540-98c0-8e43db788aed
+    -> 芥川龙之介 / author / order_index 0
+
+    open--works-OL1209288W
+    -> Erich Maria Remarque / author / order_index 0
+
+Orphan Contributor relations: 0.
+
+Orphan Contributors: 0.
+
+Invalid role codes: 0.
+
+Duplicate relations: 0.
+
+Relations to missing Editions: 0.
+
+Backfill validation: PASS. No automatic merge occurred.
+
+### B.6 Preservation and Integrity
+
+Legacy authors preserved: YES.
+
+Legacy translators preserved: YES.
+
+The exact authors and translators JSON values matched their pre-migration
+values record by record.
+
+Business counts were unchanged:
+
+    Works:          before 2 / after 2
+    Editions:       before 2 / after 2
+    Copies:         before 2 / after 2
+    Active Copies:  before 2 / after 2
+    Locations:      before 2 / after 2
+    Loans:          before 0 / after 0
+    Annotations:    before 0 / after 0
+
+The post-migration formal database SHA-256 is:
+
+    b274e949ca1d5e949e4674a69aaf79207533bd05e7d63e92b9b742c864dc8a0f
+
+The SHA change is the expected result of the single approved 0005 schema and
+backfill transaction. No unrelated schema or business-data change occurred.
+
+integrity_check=ok.
+
+quick_check=ok.
+
+foreign_key_check=0.
+
+Formal user data loss: NONE.
+
+### B.7 Runtime Restart and Production Read Smoke
+
+The exact verified Phase A.1 release was restarted without rebuilding or
+switching releases:
+
+    release:
+    2026-09-13_Task008B_PhaseA1_contributor_main_final
+    buildId: WK8jgGgNr-Oya-8B8-6pL
+    sourceCommit: b89ca628f332933e873db63266c9b0bc545e5a39
+    dirty: false
+    provenance: PASS
+
+The restarted writer chain was:
+
+    host PID:   23824
+    server PID: 32812
+    port:       127.0.0.1:3000
+
+The server is the child of the Fangcun service host and is the only Fangcun
+listener on port 3000. Both expected scheduled tasks are enabled, health is
+ok, recovery/watchdog is SAFE, and no old release resurrection or duplicate
+writer was observed.
+
+Non-destructive production read smoke returned HTTP 200 for:
+
+    Home: /home
+    Collection: /library
+    Book Detail: /books/c6a3c0d3-bd12-4fac-bde5-b1ed6486d72e
+    Search: /search?q=Im%20Westen
+    Locations: /manage?focus=shelf
+    Books API: /api/catalog/books
+    Detail API: /api/catalog/books/c6a3c0d3-bd12-4fac-bde5-b1ed6486d72e
+    Loans API: /api/catalog/books/c6a3c0d3-bd12-4fac-bde5-b1ed6486d72e/loans
+    Locations API: /api/catalog/locations
+    Search API: /api/discovery/search?q=Im%20Westen&type=book
+    Export API: /api/export?format=json
+
+The two existing books returned correct title, author, legacy translator
+field, structured Contributor relations, location, copy and Edition data.
+The structured Contributor DTO was readable for both existing books and the
+legacy author/translator fallback remained compatible.
+
+Post-0005 production read smoke: PASS.
+
+### B.8 Phase B Decision
+
+Task 008B Phase B: COMPLETE.
+
+Migration: 0005_contributors.
+
+Execution count: 1.
+
+Contributor production migration: COMPLETE.
+
+Fresh backup: VALIDATED and retained.
+
+Restore rehearsal: PASS.
+
+Integrity: PASS.
+
+Quick check: PASS.
+
+Foreign keys: PASS.
+
+Single writer: YES.
+
+Recovery/watchdog: SAFE.
+
+Force termination: NO.
+
+Formal DB touched by the approved migration: YES, exactly once.
+
+No UI changes, no schema redesign, no unrelated refactor, no broad cleanup,
+and no force push were performed.
+
+Ready for Task 008C: YES.
+
+STOP.
+
 ## Phase A.1 — Post-Checkpoint Runtime Realignment
 
 Phase A.1 revalidated the Contributor-aware mainline after the post-Phase-A
