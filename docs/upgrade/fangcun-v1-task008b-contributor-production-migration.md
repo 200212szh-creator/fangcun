@@ -457,3 +457,196 @@ WAITING FOR:
     GO — EXECUTE TASK 008B PHASE B
 
 STOP.
+
+## Phase A.1 — Post-Checkpoint Runtime Realignment
+
+Phase A.1 revalidated the Contributor-aware mainline after the post-Phase-A
+checkpoint. The source-of-truth checkpoint at the start of this work was:
+
+    main        b89ca628f332933e873db63266c9b0bc545e5a39
+    origin/main b89ca628f332933e873db63266c9b0bc545e5a39
+    worktree    clean
+
+The fresh release in this section was built from that exact commit.
+
+### A.1.1 Source Commit Difference Audit
+
+The complete delta from the previous Contributor release source
+f662e35d52eb4a169daec31c498d5c3918005a06 to the current checkpoint was
+reviewed. For the required immediate delta
+89a2471d294242bee9d29f01d2734733c988405f..b89ca628f332933e873db63266c9b0bc545e5a39,
+there was one intervening commit:
+
+    b89ca62 docs: complete task008b phase a evidence
+
+Its files were classified after inspection:
+
+- docs/upgrade/fangcun-v1-task008b-contributor-production-migration.md:
+  docs/report
+- runtime/launcher/watchdog.ps1: executable runtime control code
+
+The watchdog change is limited to UTF-8 decoding of the Windows PowerShell
+5.1 health response stream. It is not a migration, API, schema, or business
+data change. No Contributor SQL, migration, API route, database repository,
+or production business-logic change was present in this delta. No repository
+hygiene or design source asset change was present in this immediate delta;
+those changes are outside the 89a2471..b89ca628 checkpoint interval.
+
+### A.1.2 Quality Gates
+
+The following gates were rerun from the b89ca628 checkpoint:
+
+- typecheck: PASS
+- lint: PASS
+- focused Contributor/provenance/readiness/Work compatibility tests:
+  PASS, 4 files and 9 tests
+- full unit/integration suite: PASS, 11 files, 30 passed and 1 skipped
+- production build: PASS, Next.js 15.5.25
+- isolated E2E: PASS, 32/32 on the clean rerun across Chromium desktop and
+  mobile projects
+
+An initial E2E attempt was not counted because the isolated 3017 test server
+exited before the final six mobile cases; the formal Fangcun service remained
+healthy throughout. A clean rerun completed all 32 cases successfully.
+
+### A.1.3 Fresh Release and Provenance
+
+A new release was built and activated:
+
+    D:\图书库\runtime\releases\2026-09-13_Task008B_PhaseA1_contributor_main_final
+
+Its release metadata was:
+
+    buildId: WK8jgGgNr-Oya-8B8-6pL
+    sourceCommit: b89ca628f332933e873db63266c9b0bc545e5a39
+    dirty: false
+    provenanceStatus: ok
+
+This release was not reused from the earlier Phase A build.
+
+### A.1.4 Controlled Runtime Realignment
+
+The previously active Phase A host PID 9704 and server PID 37860 were
+confirmed as Fangcun processes before shutdown. They were stopped through
+the project service-host graceful SIGTERM path; no force termination was
+used. The old server released port 3000 before the pointer switch.
+
+Both project release pointers were then atomically aligned to the fresh
+Phase A.1 release, and the patched Windows PowerShell 5.1 watchdog started
+the new runtime:
+
+    host PID:   20824
+    server PID: 11340
+    port:       127.0.0.1:3000
+
+The server process is the child of the Fangcun service host and the only
+Fangcun process listening on port 3000. The one other observed Node process
+belongs to an unrelated project and was not stopped. The old release did not
+resurrect. Both Fangcun scheduled tasks are enabled, the recovery check
+returned result 0, and the active writer is the single verified
+20824>11340 pair.
+
+The runtime health response reported status=ok, database=ok,
+currentMigration=0004_location_model, and provenanceStatus=ok. The
+PowerShell 5.1 UTF-8 health decoding path was verified with the Chinese
+release directory and the recovery/watchdog path remained SAFE.
+
+### A.1.5 Pre-0005 Compatibility Smoke
+
+Read-only requests against the active release all returned HTTP 200 for:
+
+    /home
+    /library
+    /books/c6a3c0d3-bd12-4fac-bde5-b1ed6486d72e
+    /search?q=Im%20Westen
+    /api/catalog/books/c6a3c0d3-bd12-4fac-bde5-b1ed6486d72e/loans
+    /api/catalog/locations
+    /api/catalog/books
+    /api/discovery/search?q=Im%20Westen&type=book
+
+The Books API returned the existing records with both legacy authors and
+translators fields. Legacy author display: PASS. Legacy translator display:
+PASS; the two current records preserve translators as empty arrays, and the
+legacy fallback adapter tests preserve non-empty legacy translator values.
+No UI-side Contributor identity inference or deduplication was introduced.
+
+### A.1.6 Formal Database and Backup Revalidation
+
+The formal database was opened read-only at:
+
+    D:\方寸数据\data\library.db
+
+The migration history remained exactly:
+
+    0001_archive_fields
+    0002_loans_annotations
+    0003_works
+    0004_location_model
+
+Contributor tables remained absent. Read-only counts remained:
+
+    Works: 2
+    Editions: 2
+    Copies: 2
+    Locations: 2
+    Loans: 0
+    Annotations: 0
+
+integrity_check=ok, quick_check=ok, foreign_key_check=0, and
+formalDatabaseMutation=false. The formal database SHA-256 remained:
+
+    282d5b79c4546fd1143a2c9ee080a8192c7fb1b660b3fd25efe8afb8e949e243
+
+The designated pre-upgrade backup was rehashed and remained:
+
+    D:\方寸数据\backups\pre-upgrade\fangcun-pre-upgrade-2026-09-09T03-15-18-486Z.db
+    SHA-256: 79ce0681274e234842ef89c9fad378f7bdb151c020757866cd3e837b1b0fe38f
+
+Formal DB touched: NO. No schema or business-data change occurred.
+
+### A.1.7 Production Runner and Decision
+
+The canonical normalized SHA-256 of migrations/0005_contributors.up.sql
+was rechecked:
+
+    693d8aa18563b998bfed57c3b5f49ab0e7f305372db742a43dae2d4b55616b83
+
+The production runner PRECHECK passed on an isolated temporary copy of the
+verified 0004-era backup with the required baseline, explicit isolated
+service attestation, and:
+
+    approval token: EXECUTE_0005_CONTRIBUTORS
+    expected migration: 0005_contributors
+    formalDatabaseMutation: false
+
+No DRY-RUN or EXECUTE mode was run. The designated older backup above was
+not reused as a Phase B execution backup. Phase B must create and verify a
+new timestamped fresh backup immediately before any formal migration.
+
+Task 008B Phase A.1: COMPLETE.
+
+Recovery/watchdog: SAFE.
+
+Pre-0005 compatibility: PASS.
+
+Legacy author display: PASS.
+
+Legacy translator display: PASS.
+
+Formal DB touched: NO.
+
+Contributor tables: ABSENT.
+
+0005_contributors: NOT APPLIED.
+
+Integrity: PASS.
+
+Production runner: PRECHECK PASS; DRY-RUN and EXECUTE NOT RUN.
+
+Phase B readiness: READY.
+
+WAITING FOR:
+
+    GO — EXECUTE TASK 008B PHASE B
+
+STOP.
