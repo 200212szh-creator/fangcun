@@ -13,6 +13,11 @@ runtime/*
 runtime/launcher/*
 !runtime/launcher/service-host.js
 !runtime/launcher/watchdog.ps1
+!runtime/launcher/fangcun-supervisor.js
+!runtime/launcher/fangcun-supervisor-control.js
+!runtime/launcher/fangcun-manual-launcher.js
+!runtime/launcher/release-manager.js
+!runtime/launcher/silent-launch.vbs
 artifacts/
 tsconfig.tsbuildinfo
 *.bak

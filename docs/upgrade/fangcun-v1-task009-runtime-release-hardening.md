@@ -306,3 +306,197 @@ Phase C 才允许在明确 maintenance window、现有 release 已备份、可�
 - 当前 architecture 具有可恢复性基础，但 authority 重复、PowerShell 依赖、deployed-only launcher 和日志相关性不足是硬化优先项。
 - 推荐 Phase B 采用不引入第三方依赖的单一静默 Node supervisor 设计。
 - Phase A 结束，等待 Task 009 Phase B 明确授权。
+
+# Fangcun v1 Task 009 — Phase B
+
+## Silent Runtime Supervisor Implementation & Isolated Verification
+
+实施日期：2026-09-20<br>
+实施分支：`engineering/task009-runtime-hardening`<br>
+Phase B 基线：`9d9a80c1e7a664d506d9b1226610fd7186acb4ef`<br>
+生产 main：`5f30520ee2f8f03fa40f428f9b8273803eaa5284`（未修改）
+
+本阶段在独立 engineering worktree 完成实现和验证。没有停止或重启生产 Fangcun，没有修改正式数据库、migration、schema、API、UI、计划任务、生产 release pointer 或 production release artifact。所有运行时验证使用临时目录、临时 SQLite 数据库和端口 `3317`；隔离 E2E 使用项目既有临时数据库和端口 `3017`。
+
+## 13. Phase B outcome
+
+Phase B 实现结果：**COMPLETE — ISOLATED ONLY**。
+
+生产切换状态：**NOT PERFORMED**。Phase C 仍需人工 maintenance window 批准后，才可处理 Task Scheduler authority consolidation、安装/卸载和生产 runtime 切换。
+
+第三方 runtime dependency：**NONE**。实现只使用 Node.js built-ins 与 Windows 内置 `wscript.exe`；没有引入 NSSM、PM2、WinSW 或其他 service wrapper。
+
+## 14. Implemented artifacts
+
+### 14.1 Node supervisor
+
+新增 `runtime/launcher/fangcun-supervisor.js`，作为唯一 runtime lifecycle authority 的实现原型：
+
+- 只接受并验证项目 root、runtime release root、data root、state、log、database 和 port 的边界路径。
+- 通过 `runtime/releases/<release>/server.js`、`release.json`、`build-id.txt` 和 current-release pointer 做严格 provenance gate。
+- 要求 release basename、metadata release/version、build ID、source commit、`dirty=false` 全部一致；拒绝缺文件、脏 release、pointer mismatch、expected build/source mismatch。
+- 启动 exact verified release 的 Node child，`windowsHide=true`，stdout/stderr 进入结构化日志，不通过 PowerShell 或 `cmd.exe` 启动业务 runtime。
+- 启动 grace、health polling、连续失败阈值、recovery cooldown、restart window 和 restart-loop protection 均为 supervisor 内部策略。
+- 默认策略：startup grace 60 秒、poll 30 秒、health timeout 3 秒、连续失败 3 次、recovery cooldown 2 秒、1 小时最多 6 次 recovery、graceful shutdown 15 秒。
+- health 必须同时确认 `app/status/database/provenanceStatus/release/build/source`，不接受只看 HTTP 200 的假健康。
+- 运行时 state 写入 `supervisor-state.json`，包括 runtime instance、supervisor PID、server PID、release/build/source 和状态。
+
+### 14.2 Deterministic ownership lock
+
+supervisor 使用 `state/supervisor.lock/owner.json` 作为目录创建型 ownership lock，并把 runtime instance ID 写入 owner。启动时对“lock 目录已经创建但 owner 尚未写入”的极短竞态进行 bounded retry；因此两个同时启动请求不会在 owner 写入窗口内都获得 authority。
+
+已有 owner 的进程仍存活时，新 supervisor 只记录 `SUPERVISOR_ALREADY_RUNNING` 并退出；owner 进程已死亡时，才按 stale-state 规则恢复。不会按端口盲杀未知进程，也不会把 PID 单独当作 ownership 证明。
+
+### 14.3 Graceful shutdown and control path
+
+新增 `runtime/launcher/fangcun-supervisor-control.js`。shutdown 请求只读取 exact state，生成带 `runtimeInstanceId` 的 `supervisor-control.json`，由对应 supervisor 自己执行 graceful shutdown。监督器向 tracked child 发送 `SIGTERM`，等待 bounded timeout，并确认端口释放；超时或端口未释放时记录 `SHUTDOWN_FAILED` 与 `force_kill_not_attempted`，明确不执行 force kill。
+
+这条 control-file path 是 Windows 下比直接从外部向 child 发 signal 更可靠的受控入口，同时避免任意 PID kill。测试也验证了“graceful failure 不自动 force-kill”。
+
+### 14.4 Structured logs and rotation
+
+supervisor JSONL 日志默认写入 data root 下的 `logs/supervisor`，每条记录包含 timestamp、runtime instance、supervisor/server PID、release、build、source 和 event。默认 rotation/retention：单文件 5 MB、最长 14 天、总量 100 MB。输出字段对 token、secret、authorization、password、borrower contact、annotation/body/notes 做基本 redaction；业务 runtime stdout/stderr 也通过同一日志边界捕获。
+
+覆盖的主要事件包括：`SUPERVISOR_START`、`RELEASE_VERIFY`、`RELEASE_REJECT`、`SERVER_START`、`SERVER_HEALTHY`、`HEALTH_FAILURE`、`SERVER_EXIT`、`RECOVERY_ATTEMPT`、`RECOVERY_SUCCESS`、`SHUTDOWN_REQUEST`、`SHUTDOWN_SUCCESS`、`SHUTDOWN_FAILED` 和 `SUPERVISOR_EXIT`。
+
+### 14.5 Release provenance and pointer manager
+
+新增 `runtime/launcher/release-manager.js`，提供 isolated `verify/promote/rollback` 命令和可复用模块接口：
+
+- promote/rollback 之前都重新验证 release artifact；
+- pointer 只允许位于项目 runtime root；
+- pointer 通过 temporary file + rename 原子更新，Windows rename 冲突路径保留短暂 previous backup；
+- promotion failure 不改变 active pointer；
+- isolated tests 验证 A/B release promotion 与 rollback 可逆。
+
+Phase B 没有修改生产 pointer，也没有调用 promotion/rollback 指向生产 release。
+
+### 14.6 Silent adapter and manual launcher
+
+新增：
+
+- `runtime/launcher/silent-launch.vbs`：只做 `wscript.exe` hidden shim，把 Node supervisor 命令以 window style `0` 启动；不包含业务、recovery、release 或数据库逻辑。
+- `runtime/launcher/fangcun-manual-launcher.js`：先请求 health；已健康时不再创建第二个 supervisor；不健康时 detached、hidden 启动 supervisor，等待 health 通过后才打开浏览器。测试通过 `--no-open` 验证了不重复启动。
+
+`.gitignore` 仅增加了上述 source-controlled launcher 文件的 narrow exceptions；没有放宽整个 runtime 或忽略规则范围。
+
+## 15. Adapter A/B evaluation
+
+| 项目 | Adapter A：direct Node | Adapter B：wscript hidden shim |
+|---|---|---|
+| 日常 runtime 是否需要 PowerShell | 否 | 否 |
+| 业务/recovery 逻辑位置 | Node supervisor | Node supervisor |
+| 启动层 | Node detached/hidden | Windows 内置 wscript → Node detached/hidden |
+| 可测试性 | 高 | 高 |
+| Task Scheduler 直接启动时的 console 可见性 | 依赖 task action / Windows console-subsystem 行为，不能单靠 Node 参数证明 | `WScript.Shell.Run(..., 0, False)` 明确请求隐藏窗口 |
+| 额外第三方依赖 | 无 | 无 |
+| Phase B 结论 | 保留为 manual/test/direct adapter | 选为 Phase C automatic authority 的目标 adapter |
+
+选择 B 不是把隐藏参数当作唯一证据：Phase B 还对 exact supervisor/server PID 查询了 `MainWindowHandle` 与 `MainWindowTitle`，两个进程均无可见窗口句柄。该查询发生在隔离 test harness 中，PowerShell 只作为观察工具，不在 supervisor 的 normal runtime path 中启动。Phase C 仍需在目标用户会话和真实登录/重启条件下进行一次人工可见性观察；不能把 isolated exact-PID 结果等同于所有 Windows session 的绝对保证。
+
+## 16. One automatic authority design
+
+Phase C 的目标 authority 定义已固定为：
+
+```text
+one Task Scheduler logon authority
+  → wscript.exe silent-launch.vbs
+    → node fangcun-supervisor.js
+      → exact verified release server.js
+```
+
+supervisor 内部承担 health、recovery、writer protection、release verification、structured state/log 和 graceful shutdown。Health Recovery task 不再作为第二个周期性启动 authority；manual launcher 只请求现有 health 或启动同一个 supervisor，不创建第二条 server chain。Phase B 没有修改现有生产 tasks；本图是 isolated implementation target，不是 production rollout confirmation。
+
+## 17. Manual launcher semantics
+
+manual launcher 的状态机如下：
+
+1. health 已通过：返回成功，不启动 supervisor，不打开第二个 server。
+2. health 未通过：detached/hidden 启动 supervisor，等待 bounded health success。
+3. health 超时或 release/provenance 不通过：返回失败并保持 fail-closed，不使用旧 release 猜测、不盲杀端口占用者。
+4. health 通过后：默认打开 `http://127.0.0.1:<port>/`；测试/诊断可使用 `--no-open`。
+
+## 18. Isolated failure matrix
+
+`tests/runtime-supervisor.test.cjs` 使用 temp directory、临时 SQLite、端口 `3317` 和 fake release server，最终结果为 **20 tests passed, 0 failed**：
+
+| 场景 | 结果 |
+|---|---|
+| 正常 start / health / graceful shutdown | PASS |
+| 第二 supervisor ownership refusal | PASS |
+| 未被 Fangcun ownership 声明的端口占用 | PASS，拒绝启动，不杀未知 listener |
+| invalid/missing release provenance | PASS，fail closed |
+| unhealthy startup | PASS，不启动 parallel server |
+| unexpected server crash | PASS，恢复 exact verified release |
+| repeated health failure / restart loop | PASS，触发保护 |
+| graceful shutdown | PASS |
+| graceful shutdown failure | PASS，无 force-kill fallback |
+| stale PID/lock recovery | PASS |
+| stale pointer | PASS |
+| promotion failure | PASS，active pointer 保持 |
+| isolated promotion / rollback | PASS |
+| manual launcher | PASS，不创建第二 server |
+| repeated startup | PASS，收敛到一个 supervisor |
+| wscript silent adapter | PASS |
+| exact supervisor/server PID window-handle check | PASS，无 visible window handle |
+| direct Node adapter | PASS，无 PowerShell/CMD runtime event |
+| isolated port/database boundary | PASS |
+
+没有测试项停止、重启或写入正式生产 runtime；没有测试项使用正式端口 `3000` 或正式数据库。
+
+## 19. Quality gates
+
+| Gate | Result | Evidence / note |
+|---|---|---|
+| `node --check` new JS | PASS | supervisor, control, manual launcher, release manager |
+| `npm run lint` | PASS | final isolated worktree |
+| `npm run typecheck` | PASS | final isolated worktree |
+| `npm run build` | PASS | Next production build；仅有 multiple lockfiles workspace-root warning |
+| native repository Vitest | PASS | 11 files；30 passed，1 expected skipped |
+| Task 009 supervisor matrix | PASS | 20/20 |
+| isolated E2E | PASS | `test:e2e:isolated`，32/32，临时 DB / port 3017 |
+
+Vitest 初次运行暴露的是 isolated worktree 未带 `tsx` package path，不是产品或 supervisor failure。验证中只把已存在的 `D:\图书库\node_modules\tsx` 链接到 isolated worktree 的 ignored `node_modules` 路径，未修改 package、lockfile 或 tracked source；之后完整 Vitest 30/30（另 1 skip）通过。
+
+## 20. Security and boundary review
+
+- 正常 runtime path 不调用 PowerShell，不调用 `cmd.exe`，不使用 shell command concatenation 启动业务 server。
+- 只启动 release manager 验证通过的 exact `server.js`；release path、pointer path、state/log/database path 都有边界限制。
+- ownership lock 是 instance-scoped；control action 必须匹配当前 runtime instance；不提供任意 PID kill API。
+- occupied port 不会被 supervisor 盲杀；unknown listener 只导致 fail-closed。
+- shutdown timeout 不降级为 force kill；失败时保留状态和日志，等待人工处置。
+- 日志有 retention/rotation 和敏感字段 redaction；没有把业务数据库内容复制到 supervisor log。
+- Phase B 没有修改正式 DB，没有执行 migration，没有新增 hard-delete、repair 或 production cleanup endpoint。
+
+## 21. Phase C promotion and rollback procedure
+
+Phase C 在人工批准前不得执行 production switch。批准后应严格按以下顺序：
+
+1. 记录 main/release/source/build/dirty、现有 tasks、Startup shortcuts、host/server PIDs、port 和 formal DB logical baseline。
+2. 先创建并验证可恢复的生产 runtime/config backup；保留旧 task XML、旧 launcher 和旧 pointer 的审计副本。
+3. 建立 exclusive maintenance window；gracefully stop 当前 authority，证明 active formal DB writers = 0，确认 `127.0.0.1:3000` 已释放。
+4. 安装/启用一个且仅一个新的 automatic authority；不要同时保留旧 recovery task、旧 Startup fallback 或旧 PowerShell authority 的可执行状态。
+5. 用 silent adapter 启动 exact verified release，验证 health、pointer、source/build/dirty、single writer、window classification 和 structured logs。
+6. 观察足够长的 health/recovery window，再标记 rollout successful；旧配置只作为离线 rollback artifact，不自动复活。
+7. rollback 时同样先 graceful stop 新 authority、证明 writer=0，再恢复旧 pointer/旧 task 配置，重新启动并验证 health/provenance；禁止按端口强杀，禁止 force push 或直接修改正式 DB。
+
+Phase B 只完成上述 procedure 的 isolated implementation/rehearsal；没有执行第 1–7 步中的 production mutation。
+
+## 22. Phase B final status
+
+| 项目 | 状态 |
+|---|---|
+| Phase A baseline | `9d9a80c1e7a664d506d9b1226610fd7186acb4ef` |
+| Production main/origin | `5f30520ee2f8f03fa40f428f9b8273803eaa5284`，未修改 |
+| Production release | `2026-09-13_Task008B_PhaseA1_contributor_main_final`，未切换 |
+| Formal DB | `D:\方寸数据\data\library.db`，未触碰 |
+| Formal migrations | `0001`–`0005_contributors`，未改变 |
+| Product/UI/schema/API change | NONE |
+| Production stop/restart | NOT PERFORMED |
+| Scheduled task change | NOT PERFORMED |
+| Force termination | NO |
+| Isolated implementation | COMPLETE |
+| Isolated verification | PASS |
+| Phase C production readiness | READY FOR EXPLICIT HUMAN APPROVAL |
+
+等待下一步：`GO — EXECUTE TASK 009 PHASE C`。本报告 checkpoint 只记录 Phase B；不自动进入生产切换。
