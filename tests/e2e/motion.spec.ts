@@ -45,7 +45,10 @@ test.describe("motion system", () => {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "zh-CN" });
     const page = await context.newPage();
     await page.goto("/home", { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle");
     const open = page.getByRole("button", { name: "打开菜单" });
+    await expect(open).toBeVisible();
+    await expect(open).toBeEnabled();
     await open.click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
@@ -67,13 +70,19 @@ test.describe("motion system", () => {
     const context = await browser.newContext({ viewport: { width: 375, height: 844 }, locale: "zh-CN", reducedMotion: "reduce" });
     const page = await context.newPage();
     await page.goto("/home", { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle");
     const reduced = await page.evaluate(() => ({
+      media: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
       animation: getComputedStyle(document.querySelector("#main-content > div") as Element).animationName,
       scroll: getComputedStyle(document.documentElement).scrollBehavior,
     }));
+    expect(reduced.media).toBe(true);
     expect(reduced.animation).toBe("none");
     expect(reduced.scroll).toBe("auto");
-    await page.getByRole("button", { name: "打开菜单" }).click();
+    const open = page.getByRole("button", { name: "打开菜单" });
+    await expect(open).toBeVisible();
+    await expect(open).toBeEnabled();
+    await open.click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await page.getByRole("button", { name: "关闭" }).click();
@@ -95,10 +104,22 @@ test.describe("motion system", () => {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [{ id: `motion-${query}`, title: query, authors: ["测试作者"], score: 0.98, editionCount: 1, source: "motion-fixture" }], offline: false }) });
     });
     await page.goto("/add", { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle");
     const title = page.getByLabel(/输入书名/);
+    await expect(title).toBeVisible();
+    await expect(title).toBeEnabled();
+    const firstQueryRequest = page.waitForRequest((request) => {
+      const url = new URL(request.url());
+      return url.pathname.endsWith("/api/discovery/books") && url.searchParams.get("q") === "第一查询";
+    });
     await title.fill("第一查询");
-    await page.waitForTimeout(380);
+    await firstQueryRequest;
+    const secondQueryRequest = page.waitForRequest((request) => {
+      const url = new URL(request.url());
+      return url.pathname.endsWith("/api/discovery/books") && url.searchParams.get("q") === "第二查询";
+    });
     await title.fill("第二查询");
+    await secondQueryRequest;
     await expect(page.getByRole("button", { name: /第二查询/ })).toBeVisible({ timeout: 2000 });
     await expect(page.getByRole("button", { name: /第一查询/ })).toHaveCount(0);
     expect(addQueries).toContain("第一查询");
