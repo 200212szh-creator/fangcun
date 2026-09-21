@@ -710,3 +710,95 @@ Phase C2 的精确目标仍是：在明确 maintenance window 内，先保存并
 | Phase C2 | NOT ENTERED |
 
 STOP at the C1 boundary. Do not execute Phase C2 without a separate explicit human approval and the required maintenance-window observation gate.
+
+ 
+## 26. Phase C2 — Controlled Production Rollout Attempt and Safe Rollback
+ 
+本节记录 2026-09-21 maintenance window 内、在明确授权下执行的 Phase C2 rollout attempt。最终状态为 `ROLLED BACK`：候选 release 的 isolated 验证在 C1 已通过，但 production 唯一 Task Scheduler authority 无法由当前 Windows Medium-integrity 会话注册，因而没有继续启动或切换到 candidate。
+ 
+### 26.1 Authoritative candidate and rollback bundle
+ 
+- Candidate release：`2026-09-21_Task009_runtime_hardening_rc_final`
+- Release path：`D:\图书库\runtime\releases\2026-09-21_Task009_runtime_hardening_rc_final`
+- Build ID：`bDOetjIdcMiPG-Kmu4dOA`
+- Candidate sourceCommit：`5fc4a07e7fe3f037c6ee8f9ca5cafc982905bc78`
+- dirty：`false`
+- candidate provenance：`PASS`
+- Rollback bundle：`D:\图书库\artifacts\task009-rollback-bundle-20260921-final`
+- Rollback bundle manifest / required files / hashes：`PASS`
+- C2 execution evidence：`D:\图书库\artifacts\task009-c2-rollout-20260921`
+ 
+Rollback bundle 在切换前重新核验，包含两个旧 Scheduled Task XML、Startup recovery shortcut、startup-hidden.vbs、startup-recovery.ps1、watchdog.ps1、active release pointers、launcher/runtime configuration、startup registry export 及 hash manifest。
+ 
+### 26.2 Controlled transition and failure gate
+ 
+Maintenance window 开始时间：`2026-09-21T09:56:22.3062789Z`。用户确认没有正在进行的 Fangcun 写操作。
+ 
+已执行且可审计的安全步骤：
+ 
+- 旧 `Fangcun Archive Service` task：先 disable；未删除。
+- 旧 `Fangcun Archive Health Recovery` task：先 disable；未删除。
+- 旧 Startup recovery shortcut：改名为 `方寸后台恢复.lnk.disabled-Task009-C2`，并保留原文件副本到 rollback bundle。
+- 旧 runtime：对精确旧 host PID 发送 graceful `SIGTERM`；未使用 force kill。旧 server/host 退出，port 3000 释放。
+- active project/data pointers：短暂切换到 exact final candidate，并完成 pointer/provenance precheck。
+ 
+随后尝试安装唯一目标 authority：
+ 
+`ONE Task Scheduler authority → wscript.exe → silent-launch.vbs → Node supervisor`
+ 
+系统对当前会话的 Task Scheduler 注册返回 `Access is denied`；管理员组在当前 token 中为 deny-only，UAC elevation attempt 没有产生已注册 task。新 task 不存在、没有新 supervisor/server 启动、没有新的 writer 进入正式 DB。由于 `new authority cannot reliably start`，按 C2 rollback condition 立即停止 rollout。
+ 
+### 26.3 Rollback result
+ 
+Rollback 顺序为：恢复 old pointers → 恢复原 Startup recovery shortcut → enable old tasks → `Start-ScheduledTask` old service → bounded health/read-only verification。
+ 
+最终恢复状态：
+ 
+| 项目 | 结果 |
+|---|---|
+| Active release | `2026-09-13_Task008B_PhaseA1_contributor_main_final` |
+| Old Build ID | `WK8jgGgNr-Oya-8B8-6pL` |
+| Old sourceCommit | `b89ca628f332933e873db63266c9b0bc545e5a39` |
+| Old Service task | `Running` / enabled |
+| Old Health Recovery task | `Ready` / enabled |
+| Old Startup recovery | 原名 `方寸后台恢复.lnk` 已恢复 |
+| Production health | `PASS`；database `ok`；provenance `ok` |
+| Production host/server | host PID `11584`，server PID `15500`，唯一旧 runtime chain |
+| Port 3000 | listener PID `15500` |
+| Candidate task | 未注册 |
+| Candidate supervisor/server | 未启动 |
+| Old release resurrection | `NO`；rollback 后仅恢复旧 verified runtime |
+ 
+### 26.4 Formal DB read-only verification after rollback
+ 
+使用现有 `scripts/validate-migration.ts` 以 `D:\方寸数据\data\library.db` 和 `PRODUCTION_READ_ONLY_ROLLBACK` target 执行只读核验：
+ 
+- migrations：`0001_archive_fields`、`0002_loans_annotations`、`0003_works`、`0004_location_model`、`0005_contributors`，unchanged
+- integrity：`ok`
+- quick-check：`ok`
+- foreign-key violations：`0`
+- editions/copies/shelves：`2 / 2 / 2`
+- API books：`2`；contributor-aware and location-aware read paths returned expected existing records
+- business counts baseline：Works `0`、Editions `2`、Copies `2`、Locations `2`、Contributors `2`、Edition Contributors `2`、Loans `0`、Annotations `0`
+- formalDatabaseMutation：`false`
+ 
+没有执行 migration、raw SQL、业务写入或 schema 修改。production transition 产生的 pointer/task/startup 临时状态已恢复；最终 active production 状态与旧 verified baseline 一致。
+ 
+### 26.5 C2 acceptance status
+ 
+| 项目 | 状态 |
+|---|---|
+| Candidate isolated validation | PASS（C1 evidence） |
+| Rollback bundle | PASS |
+| Old authority disable / graceful stop | PASS |
+| New Task Scheduler authority registration | BLOCKED — Windows access denied |
+| Exact candidate production activation | NOT COMPLETED |
+| Candidate production health / recovery / structured log gate | NOT ENTERED |
+| Candidate manual launcher / production window gate | NOT ENTERED |
+| Formal DB touched | NO |
+| Formal DB read-only rollback validation | PASS |
+| Final production state | Old verified runtime restored |
+| Phase C2 | ROLLED BACK |
+ 
+本次阻塞需要用户在真实管理员权限的 Windows maintenance session 中重新授权并执行 Task Scheduler registration；不能在当前会话中用 Startup shortcut 替代既定 authority，也不应继续进入 Phase C2 后续 production gates。Task009 Phase C2 到此 STOP。
+
