@@ -500,3 +500,139 @@ Phase B 只完成上述 procedure 的 isolated implementation/rehearsal；没有
 | Phase C production readiness | READY FOR EXPLICIT HUMAN APPROVAL |
 
 等待下一步：`GO — EXECUTE TASK 009 PHASE C`。本报告 checkpoint 只记录 Phase B；不自动进入生产切换。
+
+## 23. Phase C1.1 — E2E Gate Recovery
+
+恢复日期：2026-09-21<br>
+恢复任务：`Task 009 — Phase C1.1-R`<br>
+恢复结论：**BLOCKED — isolated E2E execution environment instability**
+
+### 23.1 Recovery baseline and boundary
+
+- 前一会话的执行 blocker 为 `helper_unknown_error: apply deny-read ACLs`，并伴随 isolated E2E 权限审批额度耗尽。本次 session 能够恢复创建 PowerShell/Node/Playwright 进程，但 helper ACL 错误仍会间歇性复现；后续只使用显式批准的只读检查和测试执行。
+- 恢复前 `HEAD = 04568329961524a586e011687f04f08fe87e93bc`，`origin/main = 04568329961524a586e011687f04f08fe87e93bc`。
+- 初始工作区为 **TEST-ONLY DIRTY**：仅有 `tests/e2e/motion.spec.ts` 的既有 reduced-motion readiness 修复，暂存区为空；未发现 UI/product、runtime、API、schema、migration 或 formal data 修改。
+- 生产仍运行 `2026-09-13_Task008B_PhaseA1_contributor_main_final\server.js`，PID `6276`，监听 `127.0.0.1:3000`。本阶段没有重启、修改或切换 production。
+
+### 23.2 Isolated process audit
+
+- 初次审计确认 `3017`/`3317` 没有稳定 listener；之后发现一条精确属于本任务的残留链：`npm → Playwright → cmd → scripts/e2e-server.cjs → Next dev → start-server.js`，其中 `3017` listener 为 isolated Next 进程，非 production 链。
+- 仅向已证明属于该链的 `e2e-server.cjs` PID 发送 graceful `SIGTERM`，随后清理 Playwright runner parent chain；没有按 `node.exe` 批量终止，没有触碰 PID `6276` 或端口 `3000`。
+- 最终审计：`3017 = FREE`，`3317 = FREE`，无残留 Playwright/isolated server chain；`3000` 仍由原 production release 监听。
+
+### 23.3 Test-only changes and root-cause investigation
+
+保留并核验了原有 `tests/e2e/motion.spec.ts` reduced-motion readiness 改动：等待 network idle、确认菜单按钮 visible/enabled，并断言 reduced-motion media query；没有增大 timeout、retry-until-pass、skip/fixme 或削弱 assertion。
+
+恢复执行发现 fast-input 测试原有的固定 `380ms` 等待会在页面 hydration/debounce 较慢时于首个请求发出前切换输入，导致 `addQueries` 只有 `第二查询`。失败 trace/error context 的页面 snapshot 显示输入状态回到空值、按钮仍 disabled；分类为 **TEST_HARNESS_TIMING**，不是 product defect。
+
+在同一 test-only 文件中采用了两个最小确定性修复：
+
+- add 页面等待 network idle，并确认标题输入框 visible/enabled；
+- 用首个和第二个精确 request event 同步输入切换，移除固定 `380ms` sleep；没有修改产品 UI/runtime。
+
+### 23.4 Targeted evidence
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Previous reduced-motion evidence | PASS | 20/20 from the preceding C1.1 attempt |
+| Resumed reduced-motion check | PASS | 20/20, four batches of 5, all `retry=0`; isolated cleanup passed after every batch |
+| `motion.spec.ts` pre-final timing patch | PASS | 8/8 across chromium/mobile before the final fast-input-only readiness patch |
+| Fast-input targeted stability | **BLOCKED** | After the final patch, run 1/10 and 2/10 passed; run 3 stopped at `page.goto ERR_CONNECTION_RESET`, followed by isolated `3017` disconnect. No 10/10 claim is made. |
+| Retry-dependent passes | 0 | All targeted runs used `--retries=0`; no Playwright retry was used to mask a failure |
+
+The earlier 10-case experiment before the final readiness patch also reproduced the same class of isolated-server interruption: 1 pass followed by `ECONNREFUSED`, and a reduced-motion long run ended with 13 passes followed by 7 reset failures. These were not counted as product failures or used to offset later failures.
+
+### 23.5 Isolated server disconnect classification
+
+The resumed failures occurred only on the disposable `3017` Next/E2E chain. They presented as transient `ERR_CONNECTION_RESET`/`ECONNREFUSED` with no Fangcun application stack trace, no matching Windows Application/System crash event, and no effect on the stable production listener at `3000`. The exact OS-level termination reason was not observable from the recovered session; the evidence supports **EXECUTION_ENVIRONMENT / isolated process-lifecycle instability**, not `FANGCUN_RUNTIME`.
+
+Per the recovery gate, counting stopped at the first failure and the three-run full E2E gate was not started. Required `3 × 32/32` first-attempt evidence is therefore **NOT ACHIEVED**.
+
+### 23.6 Quality gates completed before stop
+
+| Gate | Result |
+|---|---|
+| `npm run lint` | PASS |
+| `npm run typecheck` | PASS |
+| repository Vitest | PASS — 30 passed, 1 expected skipped |
+| Task009 supervisor matrix | PASS — 20/20 |
+| `npm run build` | PASS |
+| full isolated E2E run 1 | NOT RUN in this resumed gate |
+| full isolated E2E run 2 | NOT RUN in this resumed gate |
+| full isolated E2E run 3 | NOT RUN in this resumed gate |
+
+No production runtime was modified, no production restart occurred, no Scheduled Task or startup recovery configuration was changed, and the formal database was not touched. No test/harness commit or report commit was created because the required full E2E gate is incomplete.
+
+### 23.7 Phase C1.1-R status
+
+| 项目 | 状态 |
+|---|---|
+| Execution environment | RECOVERED for short commands; **BLOCKED for stable repeated isolated E2E** |
+| Product/UI code changed | NO |
+| Runtime code changed | NO |
+| Formal DB touched | NO |
+| Production runtime modified | NO |
+| Isolated 3017 | CLEAN at final audit |
+| Isolated 3317 | CLEAN at final audit |
+| Production 3000 touched | NO |
+| Phase C1 quality gate recovered | NO |
+| Ready to resume Task009 Phase C1 | NO |
+
+STOP. Do not build a production candidate, export or modify production runtime config, or perform any production switch until a stable execution environment can complete the missing fast-input 10/10 and three consecutive 32/32 first-attempt full E2E runs.
+
+## 24. Phase C1.2 — Stable Isolated E2E Runner Recovery and Final Gate
+
+### 24.1 Scope and commits
+
+Task009 Phase C1.2 was completed on recovery branch `engineering/task009-c1-e2e-stability`.
+
+- `55d9de3` — test-only motion readiness/request synchronization.
+- `b409ff0` — test-only stable isolated E2E runner and Playwright config.
+- The recovery branch was pushed normally to `origin/engineering/task009-c1-e2e-stability`; no force push was used.
+- The Task009 report was not included in either recovery-branch commit or push.
+- No production runtime, formal database, Scheduled Task, Startup recovery, production candidate, or Phase C2 path was changed.
+
+### 24.2 Execution-environment diagnosis
+
+Primary classification: **CODEX_EXECUTION_PROCESS_REAP**. The first long full-gate attempts ended with session exit `-1` around test 14/32 or 15/32, without a Playwright assertion failure, `SERVER_EXIT` record, or application crash event. The short gates completed normally. A contributing condition was **PLAYWRIGHT_WEBSERVER_LIFECYCLE**: older `npm run test:e2e:isolated` chains from another worktree remained as `Playwright → e2e-server → Next`, repeatedly competing for disposable port `3017`. Those exact stale chains were identified and gracefully terminated; production PID `6276` on port `3000` was never targeted.
+
+The stable runner now owns migration, server, Playwright, lifecycle metadata, stdout/stderr capture, server-death handling, bounded graceful shutdown, and isolated-root cleanup under one parent. It stops Playwright immediately when the owned server exits unexpectedly and records the failure instead of cascading connection-refused noise. The runner accepts `E2E_STABLE_PORT`; the final long runs used dedicated disposable port `3317` to eliminate the stale `3017` race.
+
+### 24.3 Final E2E evidence
+
+All gates used `--retries=0` and an isolated database whose `/api/e2e/state` reported `databaseTarget=ISOLATED`, `integrity=ok`, `quickCheck=ok`, and zero foreign-key violations.
+
+| Gate | Result | PASS artifact |
+|---|---|---|
+| fast-input | 10/10 | `artifacts/e2e-stable/2026-09-21T03-51-05-167Z-31576/summary.json` |
+| reduced-motion | 5/5 | `artifacts/e2e-stable/2026-09-21T03-50-32-229Z-26096/summary.json` |
+| `motion.spec.ts` | 8/8 | `artifacts/e2e-stable/2026-09-21T03-22-16-922Z-9596/summary.json` |
+| full E2E run 1 | 32/32 | `artifacts/e2e-stable/2026-09-21T03-35-08-661Z-30484/summary.json` |
+| full E2E run 2 | 32/32 | `artifacts/e2e-stable/2026-09-21T03-39-56-249Z-7456/summary.json` |
+| full E2E run 3 | 32/32 | `artifacts/e2e-stable/2026-09-21T03-43-34-902Z-17428/summary.json` |
+
+Each full run ended with `status=PASS`; its lifecycle record ended with `state=stopped`, and port `3317` was released. Full-run server logs include a negative-path `SQLITE_CONSTRAINT_NOTNULL` request followed by successful test continuation; this did not terminate the server or fail the corresponding test run.
+
+### 24.4 Final quality gates
+
+| Gate | Result |
+|---|---|
+| `npm run lint` | PASS |
+| `npm run typecheck` | PASS |
+| Vitest | PASS — 30 passed, 1 skipped |
+| Task009 runtime supervisor tests | PASS — 20/20 |
+| `npm run build` | PASS |
+| stable runner syntax and `git diff --check` | PASS |
+
+### 24.5 Integration and boundary status
+
+| 项目 | 状态 |
+|---|---|
+| Recovery branch | `b409ff0` == `origin/engineering/task009-c1-e2e-stability` |
+| Local main integration | YES — fast-forwarded to `b409ff0` after all gates passed |
+| `origin/main` | Intentionally unchanged at `0456832`; no remote main push was performed because the task explicitly restricted push to the recovery branch |
+| Production port `3000` | PID `6276`, unchanged |
+| Disposable ports `3017` / `3317` | FREE at final audit |
+| Working-tree Task009 report | Still uncommitted and kept separate from code commits |
+| Production candidate / Phase C2 | NOT ENTERED |
