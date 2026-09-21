@@ -636,3 +636,77 @@ Each full run ended with `status=PASS`; its lifecycle record ended with `state=s
 | Disposable ports `3017` / `3317` | FREE at final audit |
 | Working-tree Task009 report | Still uncommitted and kept separate from code commits |
 | Production candidate / Phase C2 | NOT ENTERED |
+
+## 25. Phase C1 — Task009 production candidate build and isolated E2E gate
+
+本节记录 C1.2 完成后的 candidate build 与隔离验证，不重复 24.3 的 E2E 矩阵。代码集成状态为：main 已包含 b409ff0，docs-only checkpoint 为 9a9e73c；local main = origin/main = 9a9e73c71216cc8816f9957c8af0ee1cade19423。recovery branch 仍保持 b409ff0，没有 force push 或历史改写。
+
+### 25.1 Candidate provenance and contents
+
+从 clean main 9a9e73c 构建：
+
+- Candidate：2026-09-21_Task009_runtime_hardening_rc
+- Built release：D:\图书库\runtime\releases\2026-09-21_Task009_runtime_hardening_rc
+- Inactive self-contained verification bundle：D:\图书库\runtime\candidates\2026-09-21_Task009_runtime_hardening_rc
+- sourceCommit：9a9e73c71216cc8816f9957c8af0ee1cade19423
+- buildId：tU4Ne6VtZwEuDnEyo5mG3
+- dirty：false
+- Next production build：PASS；静态页面 15/15
+- Candidate manifest：2,209 files，SHA-256 hash mismatches 0
+
+Candidate bundle 包含 built Next standalone release、Node supervisor、manual launcher、supervisor control、release manager 和 silent-launch.vbs。candidate-local rollback probe 与最终 pointer 均已恢复到正式 candidate release。未注册的 authority action audit artifact 明确记录：一个 Task Scheduler authority → wscript.exe → silent-launch.vbs → Node supervisor；normal runtime recurring PowerShell 0。没有注册或修改该 task。
+
+### 25.2 Isolated candidate validation
+
+验证使用系统 temporary directory 中的 disposable database C:\Users\17625\AppData\Local\Temp\fangcun-task009-candidate-20260921\data\library.db、state/log 目录和 127.0.0.1:3318。migration 0001–0005 全部以 databaseTarget=ISOLATED 完成，integrity/quick-check/foreign-key check 全部通过；正式数据库路径没有作为候选运行目标。
+
+结果：
+
+- normal supervisor start、/api/health、release/build/source/dirty provenance：PASS；health 为 status=ok、database=ok、provenanceStatus=ok
+- 第二 supervisor ownership：PASS；记录 SUPERVISOR_ALREADY_RUNNING，没有第二个 server/writer
+- deliberate isolated server crash recovery：PASS；exact candidate server PID 被替换，health 恢复，记录 RECOVERY_ATTEMPT / RECOVERY_SUCCESS
+- restart-loop protection：PASS；maxRestarts=2 后记录 RESTART_LOOP_PROTECTION，supervisor 退出且候选 server 进程为 0
+- graceful shutdown：PASS；记录 SHUTDOWN_SUCCESS，无 force-kill fallback
+- manual launcher：PASS；首次启动成功，重复调用不创建第二条 server chain
+- silent adapter：PASS；wscript.exe 仅瞬时存在，随后为 0
+- window/process gate：PASS；candidate supervisor/server 的 MainWindowHandle=0、标题为空；候选进程树中 PowerShell/CMD=0
+- structured logs：PASS；102 条 JSONL 记录，非法 JSON=0，缺少必需上下文=0；rotation/retention 源码策略核对通过
+- candidate-local promote/rollback：PASS；probe promote、pointer verify、rollback、pointer verify 全部成功，最终 pointer 指回正式 candidate release
+
+隔离验证完成后，port 3318、candidate supervisor/server、candidate PowerShell/CMD 均为 0；没有残留候选进程。
+
+### 25.3 Production read-only boundary check
+
+production 只读检查结果：
+
+- active release 仍为 2026-09-13_Task008B_PhaseA1_contributor_main_final
+- build ID 仍为 WK8jgGgNr-Oya-8B8-6pL
+- 127.0.0.1:3000 health=ok，唯一 listener PID=6276
+- project/data active pointer 都仍指向上述旧 release
+- D:\方寸数据\data\library.db 以 readonly 打开；integrity=ok、quick-check=ok、foreign-key violations=0，migration history 仍为 0001–0005
+- production runtime、formal DB、Scheduled Tasks、Startup recovery 均未修改；没有 production stop/restart 或 pointer switch
+
+Rollback configuration export 已保存到 D:\图书库\artifacts\task009-rollback-bundle-20260921：包含 2 个 Fangcun Scheduled Task XML、13 个 launcher/runtime 文件、2 个 Startup shortcut 副本、active pointers、active release metadata、startup registry read-only export 和 SHA-256 manifest；export inventory 记录 productionMutations=0。
+
+### 25.4 C2 target and stop boundary
+
+Phase C2 的精确目标仍是：在明确 maintenance window 内，先保存并验证 rollback bundle，证明 formal DB writer=0 与 port 3000 已释放；再仅启用一个 Task Scheduler authority，使其通过 wscript.exe silent shim 启动 Node supervisor；验证 exact release provenance、single writer、health/recovery、structured logs、window classification，并保留人工登录/重启后的可见性观察 gate。rollback 必须 graceful stop 新 authority、恢复旧 pointer/旧 task 配置并重新验证 health/provenance。
+
+本次只完成 candidate build、candidate-local isolated validation 和 production read-only audit；没有执行 C2、没有注册/启用新 Scheduled Task、没有修改 Startup recovery、没有切换 production、没有修改 formal DB，也没有构建 production candidate 之外的 production deployment artifact。
+
+### 25.5 C1 final status
+
+| 项目 | 状态 |
+|---|---|
+| Candidate build from clean main 9a9e73c | PASS |
+| Candidate provenance / content manifest | PASS |
+| Isolated lifecycle / health / provenance | PASS |
+| Crash recovery / restart-loop protection | PASS |
+| Manual launcher / silent adapter / window gate | PASS |
+| Candidate-local promote / rollback | PASS |
+| Production read-only baseline | PASS；未修改 |
+| Scheduled Task / Startup recovery / formal DB | UNCHANGED |
+| Production switch | NOT PERFORMED |
+| Phase C2 | NOT ENTERED |
+
+STOP at the C1 boundary. Do not execute Phase C2 without a separate explicit human approval and the required maintenance-window observation gate.
